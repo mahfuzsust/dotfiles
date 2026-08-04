@@ -72,12 +72,11 @@ defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
 
 # 1. Link the alias files to your ~/.config directory
 link_file "$DOTFILES_DIR/config/shell/aliases" "$CONFIG_DIR/shell/aliases"
-link_file "$DOTFILES_DIR/config/git/git_aliases" "$CONFIG_DIR/git/git_aliases"
 link_file "$DOTFILES_DIR/config/git/gac" "$CONFIG_DIR/git/gac"
-chmod +x "$CONFIG_DIR/git/gac"
+link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
+chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr"
 
-# 2. Tell Git to include your git_aliases file automatically
-git config --global include.path "$CONFIG_DIR/git/git_aliases"
+git config --global --unset include.path 2>/dev/null || true
 
 # Configure Zsh plugins and FZF
 SHELL_RC="$HOME/.zshrc"

@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "usage: gpr [--default-base]" >&2
+  echo "  --default-base  target main/master (or repo default); used by gprm" >&2
+}
+
+require_gh() {
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "gpr: gh CLI not found. Install with: brew install gh" >&2
+    exit 1
+  fi
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "gpr: gh not authenticated. Run: gh auth login" >&2
+    exit 1
+  fi
+}
+
+require_git_repo() {
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "gpr: not a git repository" >&2
+    exit 1
+  fi
+}
+
+current_branch() {
+  local branch
+  branch="$(git branch --show-current)"
+  if [[ -z "$branch" ]]; then
+    echo "gpr: unable to determine current branch (detached HEAD?)" >&2
+    exit 1
+  fi
+  printf '%s' "$branch"
+}
+
+detect_default_base() {
+  local base=""
+
+  base="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || true)"
+  if [[ -n "$base" ]]; then
+    printf '%s' "$base"
+    return 0
+  fi
+
+  if git symbolic-ref -q refs/remotes/origin/HEAD >/dev/null 2>&1; then
+    base="$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')"
+    if [[ -n "$base" ]]; then
+      printf '%s' "$base"
+      return 0
+    fi
+  fi
+
+  local candidate
+  for candidate in main master; do
+    if git show-ref --verify --quiet "refs/remotes/origin/$candidate" 2>/dev/null; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  echo "gpr: could not detect default base branch (main/master)" >&2
+  exit 1
+}
+
+select_base_branch() {
+  local branches branch
+
+  branches=()
+  while IFS= read -r branch; do
+    [[ -n "$branch" ]] && branches+=("$branch")
+  done < <(
+    git branch -r \
+      | sed 's/^[[:space:]]*origin\///' \
+      | grep -vE '^HEAD' \
+      | sort -u
+  )
+
+  if [[ ${#branches[@]} -eq 0 ]]; then
+    echo "gpr: no remote branches found" >&2
+    exit 1
+  fi
+
+  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
+    printf '%s\n' "${branches[@]}" | fzf --prompt='PR base branch> ' --height=40% --border --reverse
+    return
+  fi
+
+  echo "Select base branch:"
+  PS3="PR base branch> "
+  select branch in "${branches[@]}"; do
+    if [[ -n "${branch:-}" ]]; then
+      printf '%s' "$branch"
+      return 0
+    fi
+    echo "Invalid selection, try again."
+  done
+}
+
+prompt_title() {
+  local title=""
+  while [[ -z "$title" ]]; do
+    read -r -p "PR title: " title
+    title="${title%"${title##*[![:space:]]}"}"
+    if [[ -z "$title" ]]; then
+      echo "Title cannot be empty." >&2
+    fi
+  done
+  printf '%s' "$title"
+}
+
+edit_description() {
+  local template_file editor
+  template_file="$(mktemp "${TMPDIR:-/tmp}/gpr-body.XXXXXX")"
+
+  cat >"$template_file" <<'EOF'
+### Implementation
+
+
+
+### Why
+
+
+EOF
+
+  editor="${GIT_PR_EDITOR:-${EDITOR:-nvim}}"
+  "$editor" "$template_file"
+
+  printf '%s' "$template_file"
+}
+
+prompt_pr_state() {
+  local state
+
+  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
+    state="$(printf 'ready\ndraft' | fzf --prompt='PR state> ' --height=10 --border --reverse)"
+  else
+    echo "Select PR state:"
+    PS3="PR state> "
+    select state in ready draft; do
+      [[ -n "${state:-}" ]] && break
+      echo "Invalid selection, try again."
+    done
+  fi
+
+  if [[ -z "${state:-}" ]]; then
+    echo "gpr: aborted" >&2
+    exit 1
+  fi
+
+  printf '%s' "$state"
+}
+
+ensure_branch_pushed() {
+  local branch
+  branch="$(current_branch)"
+
+  if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    local ahead=0
+    ahead="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
+    if [[ "$ahead" -gt 0 ]]; then
+      git push
+    fi
+  else
+    git push -u origin "$branch"
+  fi
+}
+
+show_pr_url() {
+  local url="$1"
+
+  if command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$url" | pbcopy
+    echo "PR URL copied to clipboard."
+  fi
+
+  printf '\n\033[1;32mPull request created\033[0m\n'
+  printf '\033]8;;%s\033\\' "$url"
+  printf '\033[36m\033[4m%s\033[0m' "$url"
+  printf '\033]8;;\033\\\n'
+}
+
+main() {
+  local use_default_base=0
+  local base title body_file pr_state pr_url=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --default-base)
+        use_default_base=1
+        shift
+        ;;
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "gpr: unknown option: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  require_gh
+  require_git_repo
+
+  if (( use_default_base )); then
+    base="$(detect_default_base)"
+    echo "Base branch: $base"
+  else
+    base="$(select_base_branch)"
+    if [[ -z "$base" ]]; then
+      echo "gpr: aborted" >&2
+      exit 1
+    fi
+  fi
+
+  title="$(prompt_title)"
+  body_file="$(edit_description)"
+  trap 'rm -f "$body_file"' EXIT
+  pr_state="$(prompt_pr_state)"
+
+  ensure_branch_pushed
+
+  if [[ "$pr_state" == "draft" ]]; then
+    pr_url="$(
+      gh pr create \
+        --base "$base" \
+        --title "$title" \
+        --body-file "$body_file" \
+        --assignee "@me" \
+        --draft
+    )"
+  else
+    pr_url="$(
+      gh pr create \
+        --base "$base" \
+        --title "$title" \
+        --body-file "$body_file" \
+        --assignee "@me"
+    )"
+  fi
+
+  show_pr_url "$pr_url"
+}
+
+main "$@"
