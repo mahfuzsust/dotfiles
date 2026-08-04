@@ -1,0 +1,20 @@
+{
+  "Profiles": [
+    {
+      "Name": "Default",
+      "Guid": "Default",
+      "Normal Font": "FiraCode-Regular 16",
+      "Use Non-ASCII Font": false,
+      "Background Color": {
+        "Red Component": 0.10,
+        "Green Component": 0.10,
+        "Blue Component": 0.10
+      },
+      "Foreground Color": {
+        "Red Component": 0.90,
+        "Green Component": 0.90,
+        "Blue Component": 0.90
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Neovim as default editor
+alias vi="nvim"
+alias vim="nvim"
+
+# Conventional commit helper: add all, pick type, enter message
+alias gac="$HOME/.config/git/gac"

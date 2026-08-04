@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "gac: not a git repository" >&2
+  exit 1
+fi
+
+git add -A
+
+branch="$(git branch --show-current)"
+if [[ -z "$branch" ]]; then
+  echo "gac: unable to determine current branch (detached HEAD?)" >&2
+  exit 1
+fi
+
+types=(feat fix refactor docs style test chore perf ci build revert)
+
+if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
+  type="$(printf '%s\n' "${types[@]}" | fzf --prompt='Commit type> ' --height=40% --border --reverse)"
+else
+  echo "Select commit type:"
+  PS3="Commit type> "
+  select type in "${types[@]}"; do
+    if [[ -n "${type:-}" ]]; then
+      break
+    fi
+    echo "Invalid selection, try again."
+  done
+fi
+
+if [[ -z "${type:-}" ]]; then
+  echo "gac: aborted" >&2
+  exit 1
+fi
+
+read -r -p "Commit message: " message
+message="${message%"${message##*[![:space:]]}"}"
+message="${message%.}"
+
+if [[ -z "$message" ]]; then
+  echo "gac: empty commit message, aborted" >&2
+  exit 1
+fi
+
+commit_msg="${type}(${branch}): ${message}"
+git commit -m "$commit_msg"

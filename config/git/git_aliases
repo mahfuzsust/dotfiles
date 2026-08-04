@@ -1,0 +1,9 @@
+# config/git/git_aliases
+[alias]
+    st = status -sb
+    co = checkout
+    ci = commit
+    br = branch
+    df = diff
+    # A beautiful, readable git log
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
