@@ -16,6 +16,12 @@ chmod +x install.sh
 Already cloned? Re-apply everything anytime:
 
 ```bash
+dotinstall
+```
+
+Or:
+
+```bash
 cd ~/dotfiles && ./install.sh
 ```
 
@@ -161,6 +167,20 @@ Custom editor for the description:
 export GIT_PR_EDITOR=vim
 ```
 
+### `gclean` — branch cleanup
+
+```bash
+gclean      # prune + list
+gclean -f   # also delete branches with no upstream
+```
+
+What it does:
+
+1. `git fetch --prune`
+2. **Deletes** local branches that are merged into the default base and whose remote was deleted (`[gone]`)
+3. **Lists** local branches with no upstream tracking (never deletes current, `main`, or `master`)
+4. With **`-f`**, **deletes** all local branches with no upstream tracking
+
 ---
 
 ## Shell setup
@@ -181,6 +201,8 @@ Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to 
 | `gac` | `~/.config/git/gac` |
 | `gpr` | interactive PR via `gh` (choose base branch) |
 | `gprm` | PR via `gh` into repo default branch |
+| `gclean` | prune merged gone branches; list/delete untracked local branches |
+| `dotinstall` | run `~/dotfiles/install.sh` |
 
 ### Zsh plugins (via `install.sh`)
 
@@ -239,7 +261,8 @@ DOTFILES=~/dotfiles
 ln -sfn "$DOTFILES/config/shell/aliases" ~/.config/shell/aliases
 ln -sfn "$DOTFILES/config/git/gac" ~/.config/git/gac
 ln -sfn "$DOTFILES/config/git/gpr" ~/.config/git/gpr
-chmod +x ~/.config/git/gac ~/.config/git/gpr
+ln -sfn "$DOTFILES/config/git/gclean" ~/.config/git/gclean
+chmod +x ~/.config/git/gac ~/.config/git/gpr ~/.config/git/gclean
 source ~/.config/shell/aliases
 
 # Git defaults
