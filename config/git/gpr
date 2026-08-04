@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+_GPR_BODY_FILE=""
+
 usage() {
   echo "usage: gpr [--default-base]" >&2
   echo "  --default-base  target main/master (or repo default); used by gprm" >&2
@@ -64,7 +66,7 @@ detect_default_base() {
 }
 
 select_base_branch() {
-  local branches branch
+  local branches branch selected=""
 
   branches=()
   while IFS= read -r branch; do
@@ -81,32 +83,103 @@ select_base_branch() {
     exit 1
   fi
 
-  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
-    printf '%s\n' "${branches[@]}" | fzf --prompt='PR base branch> ' --height=40% --border --reverse
-    return
+  if command -v fzf >/dev/null 2>&1; then
+    selected="$(
+      printf '%s\n' "${branches[@]}" \
+        | fzf --prompt='PR base branch> ' --height=40% --border --reverse
+    )"
+  else
+    echo "Select base branch:" >&2
+    PS3="PR base branch> "
+    select branch in "${branches[@]}"; do
+      if [[ -n "${branch:-}" ]]; then
+        selected="$branch"
+        break
+      fi
+      echo "Invalid selection, try again." >&2
+    done
   fi
 
-  echo "Select base branch:"
-  PS3="PR base branch> "
-  select branch in "${branches[@]}"; do
-    if [[ -n "${branch:-}" ]]; then
-      printf '%s' "$branch"
-      return 0
-    fi
-    echo "Invalid selection, try again."
-  done
+  if [[ -z "$selected" ]]; then
+    echo "gpr: aborted" >&2
+    exit 1
+  fi
+
+  _GPR_RESULT="$selected"
+}
+
+commits_ahead_of_base() {
+  local target_base="$1"
+  local merge_base count=0
+
+  if git show-ref --verify --quiet "refs/remotes/origin/$target_base" 2>/dev/null; then
+    merge_base="$(git merge-base "origin/$target_base" HEAD 2>/dev/null || true)"
+  else
+    merge_base="$(git merge-base "$target_base" HEAD 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$merge_base" ]]; then
+    count="$(git rev-list --count "$merge_base"..HEAD 2>/dev/null || echo 0)"
+  elif git show-ref --verify --quiet "refs/remotes/origin/$target_base" 2>/dev/null; then
+    count="$(git rev-list --count "origin/$target_base"..HEAD 2>/dev/null || echo 0)"
+  else
+    count="$(git rev-list --count "$target_base"..HEAD 2>/dev/null || echo 0)"
+  fi
+
+  printf '%s' "$count"
+}
+
+ensure_commits_ahead_of_base() {
+  local target_base="$1"
+  local count head_branch
+
+  head_branch="$(current_branch)"
+
+  if [[ "$head_branch" == "$target_base" ]]; then
+    echo "gpr: you are on the base branch ($target_base)" >&2
+    echo "gpr: checkout a feature branch and create a commit first." >&2
+    exit 1
+  fi
+
+  count="$(commits_ahead_of_base "$target_base")"
+  if [[ "$count" -eq 0 ]]; then
+    echo "gpr: no commits between $target_base and $head_branch" >&2
+    echo "gpr: create a commit first, then try again." >&2
+    exit 1
+  fi
+}
+
+default_title_for_branch() {
+  local target_base="$1"
+  local count
+
+  count="$(commits_ahead_of_base "$target_base")"
+  if [[ "$count" -eq 1 ]]; then
+    git log -1 --pretty=%s HEAD
+  fi
 }
 
 prompt_title() {
-  local title=""
-  while [[ -z "$title" ]]; do
-    read -r -p "PR title: " title
-    title="${title%"${title##*[![:space:]]}"}"
-    if [[ -z "$title" ]]; then
-      echo "Title cannot be empty." >&2
-    fi
-  done
-  printf '%s' "$title"
+  local default_title="${1:-}"
+  local input=""
+  local result=""
+
+  if [[ -n "$default_title" ]]; then
+    read -r -p "PR title [$default_title]: " input
+    result="${input:-$default_title}"
+  else
+    result=""
+    while [[ -z "$result" ]]; do
+      read -r -p "PR title: " input
+      result="${input%"${input##*[![:space:]]}"}"
+      if [[ -z "$result" ]]; then
+        echo "Title cannot be empty." >&2
+      fi
+    done
+  fi
+
+  result="${result%"${result##*[![:space:]]}"}"
+  _GPR_RESULT="$result"
 }
 
 edit_description() {
@@ -124,31 +197,35 @@ edit_description() {
 EOF
 
   editor="${GIT_PR_EDITOR:-${EDITOR:-nvim}}"
-  "$editor" "$template_file"
+  if ! "$editor" "$template_file" </dev/tty >/dev/tty 2>&1; then
+    echo "gpr: editor exited with an error" >&2
+    rm -f "$template_file"
+    exit 1
+  fi
 
-  printf '%s' "$template_file"
+  _GPR_RESULT="$template_file"
 }
 
 prompt_pr_state() {
-  local state
+  local choice=""
 
-  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
-    state="$(printf 'ready\ndraft' | fzf --prompt='PR state> ' --height=10 --border --reverse)"
+  if command -v fzf >/dev/null 2>&1; then
+    choice="$(printf 'ready\ndraft' | fzf --prompt='PR state> ' --height=10 --border --reverse)"
   else
-    echo "Select PR state:"
+    echo "Select PR state:" >&2
     PS3="PR state> "
-    select state in ready draft; do
-      [[ -n "${state:-}" ]] && break
-      echo "Invalid selection, try again."
+    select choice in ready draft; do
+      [[ -n "${choice:-}" ]] && break
+      echo "Invalid selection, try again." >&2
     done
   fi
 
-  if [[ -z "${state:-}" ]]; then
+  if [[ -z "${choice:-}" ]]; then
     echo "gpr: aborted" >&2
     exit 1
   fi
 
-  printf '%s' "$state"
+  _GPR_RESULT="$choice"
 }
 
 ensure_branch_pushed() {
@@ -180,9 +257,14 @@ show_pr_url() {
   printf '\033]8;;\033\\\n'
 }
 
+cleanup_body_file() {
+  [[ -n "$_GPR_BODY_FILE" ]] && rm -f "$_GPR_BODY_FILE"
+}
+
 main() {
   local use_default_base=0
-  local base title body_file pr_state pr_url=""
+  local base="" default_title="" pr_url=""
+  local title="" body_file="" pr_state=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -209,17 +291,21 @@ main() {
     base="$(detect_default_base)"
     echo "Base branch: $base"
   else
-    base="$(select_base_branch)"
-    if [[ -z "$base" ]]; then
-      echo "gpr: aborted" >&2
-      exit 1
-    fi
+    select_base_branch
+    base="$_GPR_RESULT"
   fi
 
-  title="$(prompt_title)"
-  body_file="$(edit_description)"
-  trap 'rm -f "$body_file"' EXIT
-  pr_state="$(prompt_pr_state)"
+  ensure_commits_ahead_of_base "$base"
+
+  default_title="$(default_title_for_branch "$base")"
+  prompt_title "$default_title"
+  title="$_GPR_RESULT"
+  edit_description
+  body_file="$_GPR_RESULT"
+  _GPR_BODY_FILE="$body_file"
+  trap cleanup_body_file EXIT
+  prompt_pr_state
+  pr_state="$_GPR_RESULT"
 
   ensure_branch_pushed
 

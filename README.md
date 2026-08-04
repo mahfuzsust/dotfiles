@@ -141,7 +141,7 @@ Interactive PR creation via the [GitHub CLI](https://cli.github.com/) (`gh`). Re
 
 Flow for both:
 
-1. Enter PR **title**
+1. Enter PR **title** (pre-filled if the branch has exactly one commit ahead of the base)
 2. Edit **description** in `nvim` (or `$EDITOR`) using a template:
    - `### Implementation`
    - `### Why`
