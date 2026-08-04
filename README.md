@@ -7,7 +7,7 @@ Personal macOS development environment — Homebrew packages, shell tooling, Git
 Clone the repo and run the installer:
 
 ```bash
-git clone <your-repo-url> ~/dotfiles
+git clone https://github.com/mahfuzsust/dotfiles ~/dotfiles
 cd ~/dotfiles
 chmod +x install.sh
 ./install.sh
