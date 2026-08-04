@@ -36,3 +36,7 @@ alias gac="$HOME/.config/git/gac"
 # GitHub pull request helpers (requires gh CLI)
 alias gpr="$HOME/.config/git/gpr"
 alias gprm="$HOME/.config/git/gpr --default-base"
+alias gclean="$HOME/.config/git/gclean"
+
+# Run dotfiles installer
+alias dotinstall="$HOME/dotfiles/install.sh"

@@ -74,7 +74,8 @@ defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
 link_file "$DOTFILES_DIR/config/shell/aliases" "$CONFIG_DIR/shell/aliases"
 link_file "$DOTFILES_DIR/config/git/gac" "$CONFIG_DIR/git/gac"
 link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
-chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr"
+link_file "$DOTFILES_DIR/config/git/gclean" "$CONFIG_DIR/git/gclean"
+chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean"
 
 git config --global --unset include.path 2>/dev/null || true
 
