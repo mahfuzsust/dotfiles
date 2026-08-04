@@ -190,10 +190,6 @@ edit_description() {
 ### Implementation
 
 
-
-### Why
-
-
 EOF
 
   editor="${GIT_PR_EDITOR:-${EDITOR:-nvim}}"
