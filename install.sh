@@ -108,14 +108,11 @@ EOF
         echo "📝 Added zsh-completions and compfix disable to $SHELL_RC"
     fi
 
-    # 2. FZF and remaining plugins (Append to the end)
+    # FZF and remaining plugins (append to the end)
     if ! grep -q "DOTFILES SETUP" "$SHELL_RC" 2>/dev/null; then
         cat << 'EOF' >> "$SHELL_RC"
 
 # --- DOTFILES SETUP ---
-# Source shell aliases
-source "$HOME/.config/shell/aliases"
-
 # Source fzf configuration
 source "$HOME/.config/fzf/fzf.env"
 
@@ -138,18 +135,26 @@ EOF
         echo "📝 Added plugins and fzf env to $SHELL_RC"
     fi
 
-    if ! grep -q 'config/shell/aliases' "$SHELL_RC" 2>/dev/null; then
+    # Shell aliases must load after Oh My Zsh (git plugin defines gpr = pull --rebase)
+    if ! grep -q "DOTFILES ALIASES" "$SHELL_RC" 2>/dev/null; then
         cat << 'EOF' >> "$SHELL_RC"
 
-# Source dotfiles shell aliases
+# --- DOTFILES ALIASES ---
+# Override Oh My Zsh git plugin aliases before loading dotfiles aliases
+unalias gpr 2>/dev/null
+unalias gprm 2>/dev/null
 source "$HOME/.config/shell/aliases"
+# --- END DOTFILES ALIASES ---
 EOF
-        echo "📝 Added shell aliases to $SHELL_RC"
+        echo "📝 Added dotfiles shell aliases to $SHELL_RC"
     fi
+
+    set +e
+    source "$SHELL_RC" 2>/dev/null
+    set -e
 else
     echo "⚠️  $SHELL_RC not found. Are you using Zsh?"
 fi
 
-source ~/.zshrc
-
 echo "🎉 Installation complete!"
+echo "↪ Open a new terminal tab if commands are not available yet."

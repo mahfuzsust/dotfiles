@@ -167,6 +167,8 @@ export GIT_PR_EDITOR=vim
 
 ### Aliases (`config/shell/aliases`)
 
+Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to `~/.zshrc` (after Oh My Zsh). The installer runs `unalias gpr` first because the OMZ git plugin defines `gpr` as `git pull --rebase`.
+
 | Alias / function | Maps to |
 |------------------|---------|
 | `vi`, `vim` | `nvim` |

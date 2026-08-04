@@ -34,10 +34,5 @@ gcob() {
 alias gac="$HOME/.config/git/gac"
 
 # GitHub pull request helpers (requires gh CLI)
-gpr() {
-  "$HOME/.config/git/gpr"
-}
-
-gprm() {
-  "$HOME/.config/git/gpr" --default-base
-}
+alias gpr="$HOME/.config/git/gpr"
+alias gprm="$HOME/.config/git/gpr --default-base"
