@@ -17,7 +17,8 @@ brew "awscli"
 tap "hashicorp/tap"
 brew "terraform", tap: "hashicorp/tap"
 brew "mongosh"
-brew "neovim"
+tap "mahfuzsust/tap", trusted: true
+brew "passbook", tap: "mahfuzsust/tap", trusted: true
 
 brew 'zsh-syntax-highlighting'
 brew 'zsh-autosuggestions'
@@ -33,5 +34,6 @@ cask "gcloud-cli"
 cask "intellij-idea"
 cask "cursor"
 cask "notion"
+cask "obsidian"
 
 npm "corepack"
