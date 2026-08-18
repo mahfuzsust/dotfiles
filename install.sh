@@ -75,9 +75,15 @@ link_file "$DOTFILES_DIR/config/shell/aliases" "$CONFIG_DIR/shell/aliases"
 link_file "$DOTFILES_DIR/config/git/gac" "$CONFIG_DIR/git/gac"
 link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
 link_file "$DOTFILES_DIR/config/git/gclean" "$CONFIG_DIR/git/gclean"
-chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean"
+link_file "$DOTFILES_DIR/config/git/setup-gpg" "$CONFIG_DIR/git/setup-gpg"
+rm -f "$CONFIG_DIR/git/gpgcopy" "$CONFIG_DIR/git/git_aliases" 2>/dev/null || true
+chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/setup-gpg"
 
 git config --global --unset include.path 2>/dev/null || true
+
+# GPG commit signing (creates key if needed, exports public key)
+echo "🔐 Setting up GPG commit signing..."
+"$DOTFILES_DIR/config/git/setup-gpg"
 
 # Configure Zsh plugins and FZF
 SHELL_RC="$HOME/.zshrc"

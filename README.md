@@ -114,6 +114,24 @@ git config --global init.defaultBranch main
 - **`core.excludesfile`** — global gitignore via the shared `ignore` file
 - **`init.defaultBranch main`** — new repos default to `main`
 
+### GPG commit signing
+
+During `dotinstall`, the installer:
+
+1. Skips setup if `user.signingkey` is already configured
+2. Prompts for **email** and **name** (name only when creating a new key)
+3. Creates an **Ed25519 key with no passphrase** if none exists for that email
+4. Sets `user.signingkey`, `user.email`, `user.name`, and `commit.gpgsign true`
+5. Saves the public key to `~/.config/git/gpg-public-key.asc` and prints a copy command using your key fingerprint
+
+Run it alone anytime:
+
+```bash
+~/dotfiles/config/git/setup-gpg
+```
+
+---
+
 ### `gac` — conventional commits
 
 Shell alias that runs an interactive commit helper:

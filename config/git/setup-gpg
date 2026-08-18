@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+gpg_secret_fingerprint() {
+  local ref="$1"
+  gpg --list-secret-keys --with-colons "$ref" 2>/dev/null \
+    | awk -F: '/^fpr:/ { print $10; exit }'
+}
+
+gpg_public_fingerprints() {
+  local ref="$1"
+  gpg --list-keys --with-colons "$ref" 2>/dev/null \
+    | awk -F: '/^fpr:/ { print $10 }'
+}
+
+gpg_key_exists() {
+  local key_id="$1"
+  gpg --list-secret-keys --keyid-format long "$key_id" >/dev/null 2>&1
+}
+
+normalize_signing_key_ref() {
+  local ref="$1"
+
+  ref="${ref//$'\r'/}"
+  if [[ "$ref" == *$'\n'* ]]; then
+    ref="$(printf '%s\n' "$ref" | awk 'NF { last=$0 } END { print last }')"
+  fi
+  ref="${ref#"${ref%%[![:space:]]*}"}"
+  ref="${ref%"${ref##*[![:space:]]}"}"
+  printf '%s' "$ref"
+}
+
+resolve_signing_key() {
+  local ref="$1"
+  local fingerprint=""
+
+  ref="$(normalize_signing_key_ref "$ref")"
+  [[ -z "$ref" ]] && return 1
+
+  fingerprint="$(gpg_secret_fingerprint "$ref")"
+  if [[ -n "$fingerprint" ]]; then
+    printf '%s' "$fingerprint"
+    return 0
+  fi
+
+  if gpg_key_exists "$ref"; then
+    printf '%s' "$ref"
+    return 0
+  fi
+
+  return 1
+}
+
+remove_orphaned_public_keys() {
+  local email="$1"
+  local fingerprint=""
+
+  while read -r fingerprint; do
+    [[ -z "$fingerprint" ]] && continue
+    echo "Removing orphaned public key (no secret key): $fingerprint"
+    gpg --batch --yes --delete-key "$fingerprint"
+  done < <(gpg_public_fingerprints "$email")
+
+  cleanup_stale_ownertrust
+}
+
+cleanup_stale_ownertrust() {
+  local trust_file clean_file line fp removed=0
+
+  trust_file="$(mktemp "${TMPDIR:-/tmp}/gpg-trust.XXXXXX")"
+  clean_file="$(mktemp "${TMPDIR:-/tmp}/gpg-trust-clean.XXXXXX")"
+
+  if ! gpg --export-ownertrust >"$trust_file" 2>/dev/null; then
+    rm -f "$trust_file" "$clean_file"
+    return 0
+  fi
+
+  while IFS= read -r line; do
+    if [[ -z "$line" || "$line" == \#* ]]; then
+      printf '%s\n' "$line" >>"$clean_file"
+      continue
+    fi
+
+    fp="${line%%:*}"
+    if gpg --list-keys "$fp" >/dev/null 2>&1; then
+      printf '%s\n' "$line" >>"$clean_file"
+    else
+      echo "Removing stale ownertrust for missing key: $fp"
+      removed=1
+    fi
+  done <"$trust_file"
+
+  if (( removed )); then
+    gpg --import-ownertrust <"$clean_file" >/dev/null 2>&1
+    gpg --check-trustdb >/dev/null 2>&1 || true
+  fi
+
+  rm -f "$trust_file" "$clean_file"
+}
+
+set_ultimate_trust() {
+  local fingerprint="$1"
+  printf '%s:6:\n' "$fingerprint" | gpg --import-ownertrust >/dev/null 2>&1
+  gpg --check-trustdb >/dev/null 2>&1 || true
+}
+
+show_public_key() {
+  local ref="$1"
+  local fingerprint="" export_file="" pubkey_file=""
+
+  fingerprint="$(resolve_signing_key "$ref")"
+  if [[ -z "$fingerprint" ]]; then
+    echo "setup-gpg: could not resolve secret GPG key: $ref" >&2
+    exit 1
+  fi
+
+  export_file="$(mktemp "${TMPDIR:-/tmp}/gpg-export.XXXXXX")"
+  pubkey_file="${HOME}/.config/git/gpg-public-key.asc"
+  mkdir -p "$(dirname "$pubkey_file")"
+
+  if ! gpg --armor --export "$fingerprint" >"$export_file"; then
+    rm -f "$export_file"
+    echo "setup-gpg: failed to export public key" >&2
+    exit 1
+  fi
+
+  if [[ ! -s "$export_file" ]]; then
+    rm -f "$export_file"
+    echo "setup-gpg: exported public key is empty" >&2
+    exit 1
+  fi
+
+  cp "$export_file" "$pubkey_file"
+  rm -f "$export_file"
+
+  if [[ ! -f "$pubkey_file" ]]; then
+    echo "setup-gpg: failed to write $pubkey_file" >&2
+    exit 1
+  fi
+
+  echo "💾 Public key saved to $pubkey_file"
+
+  if command -v pbcopy >/dev/null 2>&1; then
+    if pbcopy <"$pubkey_file"; then
+      echo "📋 Public key copied to clipboard"
+    else
+      echo "setup-gpg: could not copy public key to clipboard" >&2
+    fi
+  else
+    echo "setup-gpg: pbcopy not found; copy from $pubkey_file" >&2
+  fi
+
+  echo "Paste at: https://github.com/settings/gpg/new"
+}
+
+configure_git_signing() {
+  local signing_key="$1"
+  local name="${2:-}"
+  local email="${3:-}"
+
+  git config --global user.signingkey "$signing_key"
+  git config --global commit.gpgsign true
+
+  if [[ -n "$name" ]]; then
+    git config --global user.name "$name"
+  fi
+
+  if [[ -n "$email" ]]; then
+    git config --global user.email "$email"
+  fi
+}
+
+generate_gpg_key() {
+  local name="$1"
+  local email="$2"
+  local uid="${name} <${email}>"
+
+  echo "Generating Ed25519 GPG key for ${uid} (no passphrase)..." >&2
+  gpg --batch --pinentry-mode loopback --passphrase '' \
+    --quick-generate-key "$uid" ed25519 cert,sign 0
+
+  gpg_secret_fingerprint "$email"
+}
+
+main() {
+  local existing_signing_key="" signing_key="" gpg_email="" gpg_name=""
+  local configured_secret=""
+
+  if ! command -v gpg >/dev/null 2>&1; then
+    echo "setup-gpg: gpg not found. Install with: brew install gnupg" >&2
+    exit 1
+  fi
+
+  cleanup_stale_ownertrust
+
+  existing_signing_key="$(git config --global user.signingkey 2>/dev/null || true)"
+  existing_signing_key="$(normalize_signing_key_ref "$existing_signing_key")"
+  if [[ -n "$existing_signing_key" ]]; then
+    configured_secret="$(resolve_signing_key "$existing_signing_key" || true)"
+    if [[ -n "$configured_secret" ]]; then
+      git config --global user.signingkey "$configured_secret"
+      echo "✅ GPG signing key already configured: $configured_secret"
+      show_public_key "$configured_secret"
+      return 0
+    fi
+
+    echo "⚠️  Git signing key is set but no matching secret key was found; continuing setup."
+  fi
+
+  gpg_email="$(git config --global user.email 2>/dev/null || true)"
+  gpg_email="${gpg_email%"${gpg_email##*[![:space:]]}"}"
+  gpg_name="$(git config --global user.name 2>/dev/null || true)"
+  gpg_name="${gpg_name%"${gpg_name##*[![:space:]]}"}"
+
+  if [[ -t 0 ]]; then
+    while [[ -z "$gpg_email" ]]; do
+      read -r -p "GPG email: " gpg_email </dev/tty
+      gpg_email="${gpg_email%"${gpg_email##*[![:space:]]}"}"
+      if [[ -z "$gpg_email" ]]; then
+        echo "Email cannot be empty." >&2
+      fi
+    done
+  elif [[ -z "$gpg_email" ]]; then
+    echo "setup-gpg: no TTY and no git user.email configured; run setup-gpg interactively" >&2
+    exit 1
+  fi
+
+  signing_key="$(gpg_secret_fingerprint "$gpg_email" || true)"
+  if [[ -n "$signing_key" ]]; then
+    echo "✅ Using existing secret GPG key for $gpg_email: $signing_key"
+    set_ultimate_trust "$signing_key"
+  else
+    if gpg --list-keys "$gpg_email" >/dev/null 2>&1; then
+      echo "⚠️  Public GPG key(s) exist for $gpg_email but no secret key is available."
+      echo "Removing orphaned public key(s) so a new signing key can be created..."
+      remove_orphaned_public_keys "$gpg_email"
+    fi
+
+    if [[ -t 0 ]]; then
+      gpg_name=""
+      while [[ -z "$gpg_name" ]]; do
+        read -r -p "GPG name: " gpg_name </dev/tty
+        gpg_name="${gpg_name%"${gpg_name##*[![:space:]]}"}"
+        if [[ -z "$gpg_name" ]]; then
+          echo "Name cannot be empty." >&2
+        fi
+      done
+    elif [[ -z "$gpg_name" ]]; then
+      echo "setup-gpg: no TTY and no git user.name configured; run setup-gpg interactively" >&2
+      exit 1
+    fi
+
+    signing_key="$(generate_gpg_key "$gpg_name" "$gpg_email")"
+    echo "✅ Created GPG key: $signing_key"
+    set_ultimate_trust "$signing_key"
+  fi
+
+  configure_git_signing "$signing_key" "$gpg_name" "$gpg_email"
+  echo "✅ Git commit signing enabled (user.signingkey=$signing_key)"
+  show_public_key "$signing_key"
+}
+
+main "$@"
