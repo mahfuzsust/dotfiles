@@ -7,12 +7,6 @@ gpg_secret_fingerprint() {
     | awk -F: '/^fpr:/ { print $10; exit }'
 }
 
-gpg_public_fingerprints() {
-  local ref="$1"
-  gpg --list-keys --with-colons "$ref" 2>/dev/null \
-    | awk -F: '/^fpr:/ { print $10 }'
-}
-
 gpg_key_exists() {
   local key_id="$1"
   gpg --list-secret-keys --keyid-format long "$key_id" >/dev/null 2>&1
@@ -49,53 +43,6 @@ resolve_signing_key() {
   fi
 
   return 1
-}
-
-remove_orphaned_public_keys() {
-  local email="$1"
-  local fingerprint=""
-
-  while read -r fingerprint; do
-    [[ -z "$fingerprint" ]] && continue
-    echo "Removing orphaned public key (no secret key): $fingerprint"
-    gpg --batch --yes --delete-key "$fingerprint"
-  done < <(gpg_public_fingerprints "$email")
-
-  cleanup_stale_ownertrust
-}
-
-cleanup_stale_ownertrust() {
-  local trust_file clean_file line fp removed=0
-
-  trust_file="$(mktemp "${TMPDIR:-/tmp}/gpg-trust.XXXXXX")"
-  clean_file="$(mktemp "${TMPDIR:-/tmp}/gpg-trust-clean.XXXXXX")"
-
-  if ! gpg --export-ownertrust >"$trust_file" 2>/dev/null; then
-    rm -f "$trust_file" "$clean_file"
-    return 0
-  fi
-
-  while IFS= read -r line; do
-    if [[ -z "$line" || "$line" == \#* ]]; then
-      printf '%s\n' "$line" >>"$clean_file"
-      continue
-    fi
-
-    fp="${line%%:*}"
-    if gpg --list-keys "$fp" >/dev/null 2>&1; then
-      printf '%s\n' "$line" >>"$clean_file"
-    else
-      echo "Removing stale ownertrust for missing key: $fp"
-      removed=1
-    fi
-  done <"$trust_file"
-
-  if (( removed )); then
-    gpg --import-ownertrust <"$clean_file" >/dev/null 2>&1
-    gpg --check-trustdb >/dev/null 2>&1 || true
-  fi
-
-  rm -f "$trust_file" "$clean_file"
 }
 
 set_ultimate_trust() {
@@ -184,14 +131,12 @@ generate_gpg_key() {
 
 main() {
   local existing_signing_key="" signing_key="" gpg_email="" gpg_name=""
-  local configured_secret=""
+  local configured_secret="" new_key=0
 
   if ! command -v gpg >/dev/null 2>&1; then
     echo "setup-gpg: gpg not found. Install with: brew install gnupg" >&2
     exit 1
   fi
-
-  cleanup_stale_ownertrust
 
   existing_signing_key="$(git config --global user.signingkey 2>/dev/null || true)"
   existing_signing_key="$(normalize_signing_key_ref "$existing_signing_key")"
@@ -200,7 +145,6 @@ main() {
     if [[ -n "$configured_secret" ]]; then
       git config --global user.signingkey "$configured_secret"
       echo "✅ GPG signing key already configured: $configured_secret"
-      show_public_key "$configured_secret"
       return 0
     fi
 
@@ -230,12 +174,6 @@ main() {
     echo "✅ Using existing secret GPG key for $gpg_email: $signing_key"
     set_ultimate_trust "$signing_key"
   else
-    if gpg --list-keys "$gpg_email" >/dev/null 2>&1; then
-      echo "⚠️  Public GPG key(s) exist for $gpg_email but no secret key is available."
-      echo "Removing orphaned public key(s) so a new signing key can be created..."
-      remove_orphaned_public_keys "$gpg_email"
-    fi
-
     if [[ -t 0 ]]; then
       gpg_name=""
       while [[ -z "$gpg_name" ]]; do
@@ -253,11 +191,14 @@ main() {
     signing_key="$(generate_gpg_key "$gpg_name" "$gpg_email")"
     echo "✅ Created GPG key: $signing_key"
     set_ultimate_trust "$signing_key"
+    new_key=1
   fi
 
   configure_git_signing "$signing_key" "$gpg_name" "$gpg_email"
   echo "✅ Git commit signing enabled (user.signingkey=$signing_key)"
-  show_public_key "$signing_key"
+  if (( new_key )); then
+    show_public_key "$signing_key"
+  fi
 }
 
 main "$@"

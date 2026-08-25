@@ -30,6 +30,30 @@ gcob() {
   git checkout -b "$1"
 }
 
+gbn() {
+  local base=""
+
+  if [[ -z "$1" ]]; then
+    echo "usage: gbn <branch-name>" >&2
+    return 1
+  fi
+
+  if git show-ref --verify --quiet refs/heads/main 2>/dev/null \
+    || git show-ref --verify --quiet refs/remotes/origin/main 2>/dev/null; then
+    base=main
+  elif git show-ref --verify --quiet refs/heads/master 2>/dev/null \
+    || git show-ref --verify --quiet refs/remotes/origin/master 2>/dev/null; then
+    base=master
+  else
+    echo "gbn: neither main nor master branch found" >&2
+    return 1
+  fi
+
+  git checkout "$base" || return 1
+  git pull || return 1
+  git checkout -b "$1"
+}
+
 # Conventional commit helper: add all, pick type, enter message
 alias gac="$HOME/.config/git/gac"
 
@@ -38,5 +62,11 @@ alias gpr="$HOME/.config/git/gpr"
 alias gprm="$HOME/.config/git/gpr --default-base"
 alias gclean="$HOME/.config/git/gclean"
 
-# Run dotfiles installer
-alias dotinstall="$HOME/dotfiles/install.sh"
+# Run dotfiles installer (reloads shell config in the current session)
+dotinstall() {
+  DOTFILES_INSTALL_FROM_DOTINSTALL=1 "$HOME/dotfiles/install.sh" "$@" || return $?
+  set +e
+  source "$HOME/.zshrc" 2>/dev/null
+  set -e
+  echo "✅ Shell configuration reloaded"
+}
