@@ -14,27 +14,64 @@ if [[ -z "$branch" ]]; then
   exit 1
 fi
 
-types=(feat fix refactor docs style test chore perf ci build revert)
+types=(amend feat fix refactor docs style test chore perf ci build revert)
 
-if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
-  type="$(printf '%s\n' "${types[@]}" | fzf --prompt='Commit type> ' --height=40% --border --reverse)"
-else
-  echo "Select commit type:"
-  PS3="Commit type> "
-  select type in "${types[@]}"; do
-    if [[ -n "${type:-}" ]]; then
-      break
-    fi
-    echo "Invalid selection, try again."
-  done
-fi
+pick_option() {
+  local prompt="$1"
+  shift
+  local choice=""
 
-if [[ -z "${type:-}" ]]; then
+  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
+    choice="$(printf '%s\n' "$@" | fzf --prompt="${prompt} " --height=40% --border --reverse)"
+  else
+    echo "Select ${prompt}:"
+    PS3="${prompt}> "
+    select choice in "$@"; do
+      if [[ -n "${choice:-}" ]]; then
+        break
+      fi
+      echo "Invalid selection, try again."
+    done
+  fi
+
+  printf '%s' "$choice"
+}
+
+action="$(pick_option "Commit type" "${types[@]}")"
+
+if [[ -z "${action:-}" ]]; then
   echo "gac: aborted" >&2
   exit 1
 fi
 
-read -r -p "Commit message: " message
+amend=0
+type="$action"
+default_message=""
+
+if [[ "$action" == amend ]]; then
+  amend=1
+  if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+    echo "gac: nothing to amend (no commits yet)" >&2
+    exit 1
+  fi
+
+  prev_subject="$(git log -1 --pretty=%s)"
+  if [[ "$prev_subject" == *"("*"): "* ]]; then
+    type="${prev_subject%%(*}"
+    default_message="${prev_subject#*: }"
+  else
+    type="chore"
+    default_message="$prev_subject"
+  fi
+fi
+
+if [[ -n "$default_message" ]]; then
+  read -r -p "Commit message [${default_message}]: " message
+  message="${message:-$default_message}"
+else
+  read -r -p "Commit message: " message
+fi
+
 message="${message%"${message##*[![:space:]]}"}"
 message="${message%.}"
 
@@ -44,4 +81,9 @@ if [[ -z "$message" ]]; then
 fi
 
 commit_msg="${type}(${branch}): ${message}"
-git commit -m "$commit_msg"
+
+if (( amend )); then
+  git commit --amend -m "$commit_msg"
+else
+  git commit -m "$commit_msg"
+fi
