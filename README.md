@@ -77,7 +77,7 @@ dotfiles/
 
 | Package | Purpose |
 |---------|---------|
-| `git`, `gh` | Version control and GitHub CLI |
+| `git`, `gh`, `gh-stack` | Version control and GitHub CLI |
 | `neovim` | Default editor |
 | `fzf`, `fd`, `ripgrep` | Fuzzy finding and fast search |
 | `jq` | JSON processing |
