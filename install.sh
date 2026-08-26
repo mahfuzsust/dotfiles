@@ -46,6 +46,22 @@ link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
 link_file "$DOTFILES_DIR/ignore" "$HOME/.global_ignore"
 git config --global core.excludesfile "$HOME/.global_ignore"
 git config --global init.defaultBranch main
+git config --global rerere.enabled true
+
+if command -v gh &>/dev/null; then
+    if gh extension list 2>/dev/null | grep -q 'gh-stack'; then
+        echo "✅ gh-stack extension is already installed."
+    else
+        echo "📦 Installing gh extension: gh-stack..."
+        if gh extension install github/gh-stack; then
+            echo "✅ gh-stack extension installed."
+        else
+            echo "⚠️  Failed to install gh-stack extension (try: gh auth login)" >&2
+        fi
+    fi
+else
+    echo "⚠️  gh CLI not found; skipping gh-stack extension install"
+fi
 
 # 2. For standalone fd (Native XDG path)
 link_file "$DOTFILES_DIR/ignore" "$CONFIG_DIR/fd/ignore"
