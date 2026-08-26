@@ -31,27 +31,11 @@ gcob() {
 }
 
 gbn() {
-  local base=""
-
   if [[ -z "$1" ]]; then
     echo "usage: gbn <branch-name>" >&2
     return 1
   fi
-
-  if git show-ref --verify --quiet refs/heads/main 2>/dev/null \
-    || git show-ref --verify --quiet refs/remotes/origin/main 2>/dev/null; then
-    base=main
-  elif git show-ref --verify --quiet refs/heads/master 2>/dev/null \
-    || git show-ref --verify --quiet refs/remotes/origin/master 2>/dev/null; then
-    base=master
-  else
-    echo "gbn: neither main nor master branch found" >&2
-    return 1
-  fi
-
-  git checkout "$base" || return 1
-  git pull || return 1
-  git checkout -b "$1"
+  git town hack "$@"
 }
 
 # Conventional commit helper: add all, pick type, enter message
