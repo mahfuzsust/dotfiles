@@ -293,3 +293,4 @@ chmod go-w "$(brew --prefix)/share"
 1. Edit files under `config/` or `Brewfile`
 2. Run `./install.sh` to re-link and re-apply
 3. Open a new terminal or `source ~/.zshrc`
+
