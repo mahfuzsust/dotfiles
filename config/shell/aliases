@@ -30,14 +30,6 @@ gcob() {
   git checkout -b "$1"
 }
 
-gbn() {
-  if [[ -z "$1" ]]; then
-    echo "usage: gbn <branch-name>" >&2
-    return 1
-  fi
-  git town hack "$@"
-}
-
 # Conventional commit helper: add all, pick type, enter message
 alias gac="$HOME/.config/git/gac"
 
@@ -54,3 +46,6 @@ dotinstall() {
   set -e
   echo "✅ Shell configuration reloaded"
 }
+
+# Load modular shell helpers (kubernetes, etc.)
+[[ -f "$HOME/.config/shell/load" ]] && source "$HOME/.config/shell/load"

@@ -51,33 +51,13 @@ The installer is idempotent — safe to run multiple times.
 
 ---
 
-## Project structure
-
-```
-dotfiles/
-├── install.sh              # Main installer
-├── Brewfile                # Homebrew formulae, casks, and npm packages
-├── ignore                  # Shared ignore rules (git, fd, ripgrep)
-├── config/
-│   ├── fzf/fzf.env         # fzf defaults and key bindings
-│   ├── git/
-│   │   ├── gac             # Conventional commit helper script
-│   │   └── gpr             # GitHub pull request helper script
-│   ├── iterm2/profile.json # iTerm2 dynamic profile
-│   ├── ripgrep/ripgreprc   # ripgrep defaults
-│   └── shell/aliases       # Shell aliases (git shortcuts, vi, gac)
-└── README.md
-```
-
----
-
 ## Homebrew packages (`Brewfile`)
 
 ### CLI tools
 
 | Package | Purpose |
 |---------|---------|
-| `git`, `gh`, `gh-stack`, `git-town` | Version control and GitHub CLI |
+| `git`, `gh`, `gh-stack` | Version control and GitHub CLI |
 | `neovim` | Default editor |
 | `fzf`, `fd`, `ripgrep` | Fuzzy finding and fast search |
 | `jq` | JSON processing |
@@ -221,6 +201,21 @@ Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to 
 | `gprm` | PR via `gh` into repo default branch |
 | `gclean` | prune merged gone branches; list/delete untracked local branches |
 | `dotinstall` | run `~/dotfiles/install.sh` |
+
+### Shell modules (`config/shell/`)
+
+`aliases` is sourced from `~/.zshrc`. It loads `load`, which auto-sources every other file in `~/.config/shell/` (e.g. `kubernetes`). Add a new module by creating `config/shell/<name>` and re-running `dotinstall`.
+
+| Command | Description |
+|---------|-------------|
+| `kgp` | `kubectl get pods` (pass flags like `-n my-ns`) |
+| `kgn` | `kubectl get nodes` |
+| `klog` | Pick pod with fzf, stream logs through fzf filter (`--tail N`, default 2000) |
+| `kexec` | Pick pod with fzf, open shell (`--shell` to override) |
+| `klogr` | Pick pod with fzf, search logs with `rg` (`klogr -n my-ns "error"`) |
+| `klogra` | Search logs across pods with `rg` (`klogra -l app=foo "timeout"`) |
+
+All commands use `kubectl` directly. Extra args are forwarded to `get pods` / `logs` as appropriate. If your environment wraps kubectl (e.g. `alias kubectl='sc k8s kubectl'` in `~/.zshrc`), these helpers pick that up automatically.
 
 ### Zsh plugins (via `install.sh`)
 

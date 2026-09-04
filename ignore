@@ -147,3 +147,5 @@ Applications/
 .sbt/
 .bundle/
 .local/
+
+**/.claude/settings.local.json

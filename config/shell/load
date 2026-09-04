@@ -1,0 +1,10 @@
+# Load dotfiles shell modules (add new files alongside this one; they are sourced automatically).
+DOTFILES_SHELL="${DOTFILES_SHELL:-$HOME/.config/shell}"
+
+for module in "$DOTFILES_SHELL"/*(N); do
+  [[ -f "$module" ]] || continue
+  case "${module:t}" in
+    aliases|load) continue ;;
+  esac
+  source "$module"
+done

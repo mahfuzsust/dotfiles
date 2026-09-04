@@ -1,0 +1,193 @@
+# Kubernetes helpers (requires kubectl).
+
+_kubectl_required() {
+  if ! command -v kubectl >/dev/null 2>&1; then
+    echo "kubectl not found" >&2
+    return 1
+  fi
+}
+
+_fzf_required() {
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "fzf not found" >&2
+    return 1
+  fi
+}
+
+_kubectl_fzf_pod() {
+  kubectl get pods "$@" --no-headers \
+    -o custom-columns="NAME:.metadata.name,NAMESPACE:.metadata.namespace" \
+    | fzf --height 40% --reverse --prompt="Select Pod > "
+}
+
+_k8s_usage() {
+  local cmd="$1"
+  shift
+  echo "$cmd: $1" >&2
+  shift
+  while [[ $# -gt 0 ]]; do
+    echo "  $1" >&2
+    shift
+  done
+  return 1
+}
+
+kgp() {
+  _kubectl_required || return 1
+
+  if [[ $# -eq 0 ]]; then
+    _k8s_usage kgp \
+      "list pods via kubectl" \
+      "Usage: kgp [flags...]" \
+      "Example: kgp -n my-ns"
+    return 1
+  fi
+
+  kubectl get pods "$@"
+}
+
+kgn() {
+  _kubectl_required || return 1
+
+  if [[ $# -eq 0 ]]; then
+    _k8s_usage kgn \
+      "list nodes via kubectl" \
+      "Usage: kgn [flags...]" \
+      "Example: kgn -o wide"
+    return 1
+  fi
+
+  kubectl get nodes "$@"
+}
+
+klog() {
+  _kubectl_required || return 1
+  _fzf_required || return 1
+
+  if [[ $# -eq 0 ]]; then
+    _k8s_usage klog \
+      "pick a pod and filter logs with fzf" \
+      "Usage: klog [flags...] [--tail N]" \
+      "Example: klog -n my-ns" \
+      "Example: klog -n my-ns --tail 5000"
+    return 1
+  fi
+
+  local selected pod ns tail=2000 args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tail)
+        [[ -n "${2:-}" ]] || { echo "klog: --tail requires a value" >&2; return 1; }
+        tail="$2"
+        shift 2
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  selected="$(_kubectl_fzf_pod "${args[@]}")"
+  [[ -z "$selected" ]] && return 0
+
+  pod="${selected%%[[:space:]]*}"
+  ns="${selected##*[[:space:]]}"
+
+  kubectl logs "$pod" -n "$ns" --all-containers=true --tail="$tail" \
+    | fzf --ansi --tac --no-sort --prompt="Filter Logs ($ns/$pod) > "
+}
+
+kexec() {
+  _kubectl_required || return 1
+  _fzf_required || return 1
+
+  if [[ $# -eq 0 ]]; then
+    _k8s_usage kexec \
+      "pick a pod and open a shell" \
+      "Usage: kexec [flags...] [--shell /path]" \
+      "Example: kexec -n my-ns" \
+      "Example: kexec -l app=foo --shell /bin/bash"
+    return 1
+  fi
+
+  local selected pod ns shell="/bin/sh" args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -s|--shell)
+        [[ -n "${2:-}" ]] || { echo "kexec: --shell requires a path" >&2; return 1; }
+        shell="$2"
+        shift 2
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  selected="$(_kubectl_fzf_pod "${args[@]}")"
+  [[ -z "$selected" ]] && return 0
+
+  pod="${selected%%[[:space:]]*}"
+  ns="${selected##*[[:space:]]}"
+
+  kubectl exec -it "$pod" -n "$ns" -- "$shell"
+}
+
+klogr() {
+  _kubectl_required || return 1
+  _fzf_required || return 1
+
+  if [[ $# -lt 1 ]]; then
+    _k8s_usage klogr \
+      "search pod logs with rg (pick pod via fzf)" \
+      "Usage: klogr [flags...] <search_pattern>" \
+      'Example: klogr -n my-ns "timeout"'
+    return 1
+  fi
+
+  if ! command -v rg >/dev/null 2>&1; then
+    echo "rg not found" >&2
+    return 1
+  fi
+
+  local pattern="${@: -1}" selected pod ns args=()
+  (( $# > 1 )) && args=("${@:1:-1}")
+
+  selected="$(_kubectl_fzf_pod "${args[@]}")"
+  [[ -z "$selected" ]] && return 0
+
+  pod="${selected%%[[:space:]]*}"
+  ns="${selected##*[[:space:]]}"
+
+  echo "Searching '$pattern' in $ns/$pod..."
+  kubectl logs "$pod" -n "$ns" --all-containers=true --tail=10000 \
+    | rg --color=always -i "$pattern"
+}
+
+klogra() {
+  _kubectl_required || return 1
+
+  if [[ $# -lt 1 ]]; then
+    _k8s_usage klogra \
+      "search logs across pods with rg" \
+      "Usage: klogra [flags...] <search_pattern>" \
+      'Example: klogra -l app=foo "connection refused"'
+    return 1
+  fi
+
+  if ! command -v rg >/dev/null 2>&1; then
+    echo "rg not found" >&2
+    return 1
+  fi
+
+  local pattern="${@: -1}" args=()
+  (( $# > 1 )) && args=("${@:1:-1}")
+
+  echo "Searching '$pattern' across all matching pods..."
+  kubectl logs "${args[@]}" --all-containers=true --prefix=true --tail=2000 \
+    | rg --color=always -i "$pattern"
+}

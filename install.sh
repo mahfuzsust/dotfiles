@@ -86,8 +86,11 @@ defaults write com.googlecode.iterm2 PromptOnQuit -bool false
 # 0 = Light, 1 = Dark, 2 = Minimal
 defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
 
-# 1. Link the alias files to your ~/.config directory
-link_file "$DOTFILES_DIR/config/shell/aliases" "$CONFIG_DIR/shell/aliases"
+# 1. Link shell config into ~/.config/shell
+mkdir -p "$CONFIG_DIR/shell"
+for shell_file in "$DOTFILES_DIR/config/shell"/*(N); do
+    link_file "$shell_file" "$CONFIG_DIR/shell/${shell_file:t}"
+done
 link_file "$DOTFILES_DIR/config/git/gac" "$CONFIG_DIR/git/gac"
 link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
 link_file "$DOTFILES_DIR/config/git/gclean" "$CONFIG_DIR/git/gclean"
