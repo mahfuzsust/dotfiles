@@ -1,0 +1,234 @@
+# Search text in a directory with ripgrep.
+# Quote patterns that start with * so the shell does not expand them.
+#
+# Usage: search <pattern> [path]
+#   search abc         search for abc (ripgrep regex; smart-case from ripgreprc)
+#   search '*abc'      lines ending with abc
+#   search 'abc*'      lines starting with abc
+#   search '*abc*'     lines containing abc (same as abc for plain text)
+#   search abc ./src   search under ./src
+
+_search_usage() {
+  cat >&2 <<'EOF'
+usage: search <pattern> [path]
+
+Wildcards (quote patterns that contain *):
+  abc       ripgrep search for abc
+  *abc      lines ending with abc
+  abc*      lines starting with abc
+  *abc*     lines containing abc
+
+Examples:
+  search timeout
+  search '*Error' ./src
+  search 'func.*Handler' .
+EOF
+}
+
+_search_escape_regex() {
+  local text="$1"
+  text="${text//\\/\\\\}"
+  text="${text//./\\.}"
+  text="${text//\*/\\*}"
+  text="${text//+/\\+}"
+  text="${text//\?/\\?}"
+  text="${text//\(/\\(}"
+  text="${text//\)/\\)}"
+  text="${text//\[/\\[}"
+  text="${text//\]/\\]}"
+  text="${text//\{/\\{}"
+  text="${text//\}/\\}"
+  text="${text//\|/\\|}"
+  text="${text//\^/\\^}"
+  text="${text//\$/\\$}"
+  printf '%s' "$text"
+}
+
+_search_pattern() {
+  local pattern="$1"
+  local starts_with_star=0 ends_with_star=0 core="$pattern"
+  local escaped=""
+
+  if [[ -z "$pattern" ]]; then
+    echo "search: pattern is required" >&2
+    return 1
+  fi
+
+  if [[ "$pattern" == '*' ]]; then
+    echo "search: pattern cannot be just '*'" >&2
+    return 1
+  fi
+
+  if [[ "$pattern[1]" == '*' ]]; then
+    starts_with_star=1
+    core="${pattern#\*}"
+  fi
+
+  if [[ -n "$core" && "$core[-1]" == '*' ]]; then
+    ends_with_star=1
+    core="${core%\*}"
+  fi
+
+  if [[ -z "$core" ]]; then
+    echo "search: empty search term" >&2
+    return 1
+  fi
+
+  if (( starts_with_star || ends_with_star )); then
+    if (( starts_with_star && ends_with_star )); then
+      _SEARCH_FIXED=1
+      _SEARCH_REGEX="$core"
+      return 0
+    fi
+
+    escaped="$(_search_escape_regex "$core")"
+    _SEARCH_FIXED=0
+    if (( starts_with_star )); then
+      _SEARCH_REGEX="${escaped}\$"
+    else
+      _SEARCH_REGEX="^${escaped}"
+    fi
+    return 0
+  fi
+
+  _SEARCH_FIXED=0
+  _SEARCH_REGEX="$pattern"
+}
+
+_search_run_rg() {
+  local target="$1"
+  shift
+
+  if (( _SEARCH_FIXED )); then
+    command rg --fixed-strings -e "$_SEARCH_REGEX" "$@" "$target"
+  else
+    command rg -e "$_SEARCH_REGEX" "$@" "$target"
+  fi
+}
+
+search() {
+  local pattern="${1:-}" target="${2:-.}"
+
+  if [[ -z "$pattern" ]]; then
+    _search_usage
+    return 1
+  fi
+
+  if [[ ! -e "$target" ]]; then
+    echo "search: path not found: $target" >&2
+    return 1
+  fi
+
+  _search_pattern "$pattern" || return $?
+  _search_run_rg "$target"
+}
+
+_searche_usage() {
+  cat >&2 <<'EOF'
+usage: searche [editor] <pattern> [path]
+
+Pick a ripgrep match with fzf and open it in an editor (at the matched line).
+
+Editors (optional, default: nvim):
+  vi, vim, nvim, cursor, code
+
+Wildcards match the search command (*text, text*, *text*).
+
+Examples:
+  searche timeout
+  searche (vi, nvim<default>, cursor, code) timeout ./src
+  searche cursor '*Error'
+EOF
+}
+
+_searche_resolve_editor() {
+  case "$1" in
+    vi|vim|nvim) printf '%s' nvim ;;
+    cursor) printf '%s' cursor ;;
+    code) printf '%s' code ;;
+    *)
+      echo "searche: unknown editor: $1 (try vi, nvim, cursor, or code)" >&2
+      return 1
+      ;;
+  esac
+}
+
+_searche_open() {
+  local editor="$1" entry="$2" file="" line="" rest=""
+
+  file="${entry%%:*}"
+  rest="${entry#*:}"
+  line="${rest%%:*}"
+  [[ "$line" =~ '^[0-9]+$' ]] || line=1
+
+  case "$editor" in
+    cursor)
+      if command -v cursor >/dev/null 2>&1; then
+        cursor -g "$file:$line" 2>/dev/null || cursor "$file:$line"
+      else
+        echo "searche: cursor not found" >&2
+        return 1
+      fi
+      ;;
+    code)
+      if command -v code >/dev/null 2>&1; then
+        code -g "$file:$line"
+      else
+        echo "searche: code not found (install VS Code shell command)" >&2
+        return 1
+      fi
+      ;;
+    nvim)
+      command nvim "+$line" "$file"
+      ;;
+    *)
+      command "$editor" "+$line" "$file"
+      ;;
+  esac
+}
+
+searche() {
+  local editor="nvim" pattern="" target="."
+  local -a known_editors=(vi vim nvim cursor code)
+  local selected=""
+
+  if [[ $# -eq 0 ]]; then
+    _searche_usage
+    return 1
+  fi
+
+  if [[ " ${known_editors[*]} " == *" $1 "* ]]; then
+    editor="$(_searche_resolve_editor "$1")" || return 1
+    shift
+  fi
+
+  pattern="${1:-}"
+  if [[ -z "$pattern" ]]; then
+    _searche_usage
+    return 1
+  fi
+  shift
+
+  target="${1:-.}"
+
+  if [[ ! -e "$target" ]]; then
+    echo "searche: path not found: $target" >&2
+    return 1
+  fi
+
+  command -v fzf >/dev/null 2>&1 || {
+    echo "searche: fzf not found" >&2
+    return 1
+  }
+
+  _search_pattern "$pattern" || return $?
+
+  selected="$(
+    _search_run_rg "$target" --line-number --no-heading --color=never 2>/dev/null \
+      | fzf --delimiter : --nth 3.. \
+          --prompt='Open match> ' --height=40% --reverse --border
+  )"
+  [[ -n "$selected" ]] || return 0
+
+  _searche_open "$editor" "$selected"
+}

@@ -47,5 +47,5 @@ dotinstall() {
   echo "✅ Shell configuration reloaded"
 }
 
-# Load modular shell helpers (kubernetes, etc.)
+# Load modular shell helpers
 [[ -f "$HOME/.config/shell/load" ]] && source "$HOME/.config/shell/load"

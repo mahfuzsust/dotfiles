@@ -20,6 +20,9 @@ brew "gnupg" # Gnupg is a command-line tool for managing GPG keys
 tap "hashicorp/tap" # Hashicorp/tap is a tap for Hashicorp tools
 brew "terraform", tap: "hashicorp/tap" # Terraform is a tool for managing infrastructure as code
 brew "mongosh" # Mongosh is a command-line tool for managing MongoDB
+brew "sbt" # Sbt is a build tool for Scala
+brew "minikube" # Minikube is a tool for running Kubernetes locally
+brew "kubectl" # Kubectl is a command-line tool for managing Kubernetes clusters
 
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
@@ -28,7 +31,7 @@ brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions
 cask "bitwarden" # Bitwarden is a password manager
 cask "font-fira-code" # Fira Code is a monospace font with programming ligatures
 cask "visual-studio-code" # Visual Studio Code is a code editor
-# cask "docker-desktop" # Docker Desktop is a containerization platform for desktop
+cask "docker-desktop" # Docker Desktop is a containerization platform for desktop
 cask "maccy" # Maccy is a clipboard manager
 cask "iterm2" # iTerm2 is a terminal emulator   
 cask "gcloud-cli" # Google Cloud CLI is a command-line tool for Google Cloud Platform

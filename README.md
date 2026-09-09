@@ -201,21 +201,34 @@ Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to 
 | `gprm` | PR via `gh` into repo default branch |
 | `gclean` | prune merged gone branches; list/delete untracked local branches |
 | `dotinstall` | run `~/dotfiles/install.sh` |
+| `search <pattern> [path]` | search with ripgrep; `*text` = ends with, `text*` = starts with |
+| `searche [editor] <pattern> [path]` | pick a match with fzf, open in nvim/cursor at the line |
 
 ### Shell modules (`config/shell/`)
 
-`aliases` is sourced from `~/.zshrc`. It loads `load`, which auto-sources every other file in `~/.config/shell/` (e.g. `kubernetes`). Add a new module by creating `config/shell/<name>` and re-running `dotinstall`.
+`aliases` is sourced from `~/.zshrc`. It loads `load`, which auto-sources every other file in `~/.config/shell/` (e.g. `search`). Add a new module by creating `config/shell/<name>` and re-running `dotinstall`.
 
-| Command | Description |
-|---------|-------------|
-| `kgp` | `kubectl get pods` (pass flags like `-n my-ns`) |
-| `kgn` | `kubectl get nodes` |
-| `klog` | Pick pod with fzf, stream logs through fzf filter (`--tail N`, default 2000) |
-| `kexec` | Pick pod with fzf, open shell (`--shell` to override) |
-| `klogr` | Pick pod with fzf, search logs with `rg` (`klogr -n my-ns "error"`) |
-| `klogra` | Search logs across pods with `rg` (`klogra -l app=foo "timeout"`) |
+**`search` patterns**
 
-All commands use `kubectl` directly. Extra args are forwarded to `get pods` / `logs` as appropriate. If your environment wraps kubectl (e.g. `alias kubectl='sc k8s kubectl'` in `~/.zshrc`), these helpers pick that up automatically.
+| Pattern | Meaning |
+|---------|---------|
+| `abc` | ripgrep search (regex; smart-case from `ripgreprc`) |
+| `*abc` | lines **ending** with `abc` |
+| `abc*` | lines **starting** with `abc` |
+| `*abc*` | lines **containing** `abc` |
+
+Quote patterns with `*` so the shell does not expand them: `search '*Error' ./src`
+
+**`searche`**
+
+| Command | Opens in |
+|---------|----------|
+| `searche timeout` | nvim (default) |
+| `searche vi timeout` | nvim (`vi`/`vim`/`nvim` are equivalent) |
+| `searche cursor '*Error' ./src` | Cursor |
+| `searche code timeout` | VS Code |
+
+Optional editor comes first, then the same patterns as `search`. fzf shows `file:line:content`; Enter opens at that line.
 
 ### Zsh plugins (via `install.sh`)
 
@@ -223,6 +236,7 @@ Wired into `~/.zshrc`:
 
 - Homebrew `zsh-completions` on `FPATH`
 - `ZSH_DISABLE_COMPFIX=true` plus a permission fix on `$(brew --prefix)/share` to stop the compinit *"Ignore insecure directories"* prompt
+- `source <(kubectl completion zsh)` for kubectl tab completion
 - `zsh-autosuggestions` and `zsh-syntax-highlighting` (sourced last)
 
 ---

@@ -348,6 +348,40 @@ EOF
     echo "📝 Added zsh-syntax-highlighting to end of $shell_rc"
 }
 
+ensure_kubectl_completion_in_zshrc() {
+    local shell_rc="$1"
+    local block=""
+    local temp_rc=""
+
+    if grep -q "DOTFILES KUBECTL COMPLETION" "$shell_rc" 2>/dev/null \
+        && grep -q 'kubectl completion zsh' "$shell_rc" 2>/dev/null; then
+        return 0
+    fi
+
+    block="$(cat <<'EOF'
+
+# --- DOTFILES KUBECTL COMPLETION ---
+source <(kubectl completion zsh)
+# --- END DOTFILES KUBECTL COMPLETION ---
+EOF
+)"
+
+    if grep -q "# --- DOTFILES SYNTAX HIGHLIGHTING ---" "$shell_rc" 2>/dev/null; then
+        temp_rc="$(mktemp)"
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == "# --- DOTFILES SYNTAX HIGHLIGHTING ---" ]]; then
+                print -r -- "$block"
+            fi
+            print -r -- "$line"
+        done <"$shell_rc" >"$temp_rc"
+        mv "$temp_rc" "$shell_rc"
+    else
+        print -r -- "$block" >>"$shell_rc"
+    fi
+
+    echo "📝 Added kubectl completion to $shell_rc"
+}
+
 remove_duplicate_dotfiles_blocks() {
     local shell_rc="$1"
     local block_name="$2"
@@ -520,6 +554,8 @@ normalize_zshrc() {
         "# --- DOTFILES SETUP ---" "# --- END DOTFILES SETUP ---"
     remove_duplicate_dotfiles_blocks "$shell_rc" "DOTFILES ALIASES" \
         "# --- DOTFILES ALIASES ---" "# --- END DOTFILES ALIASES ---"
+    remove_duplicate_dotfiles_blocks "$shell_rc" "DOTFILES KUBECTL COMPLETION" \
+        "# --- DOTFILES KUBECTL COMPLETION ---" "# --- END DOTFILES KUBECTL COMPLETION ---"
     remove_duplicate_dotfiles_blocks "$shell_rc" "DOTFILES SYNTAX HIGHLIGHTING" \
         "# --- DOTFILES SYNTAX HIGHLIGHTING ---" "# --- END DOTFILES SYNTAX HIGHLIGHTING ---"
     remove_source_outside_dotfiles_block "$shell_rc" \
@@ -528,6 +564,9 @@ normalize_zshrc() {
     remove_source_outside_dotfiles_block "$shell_rc" \
         "# --- DOTFILES ALIASES ---" "# --- END DOTFILES ALIASES ---" \
         "config/shell/aliases" "aliases"
+    remove_source_outside_dotfiles_block "$shell_rc" \
+        "# --- DOTFILES KUBECTL COMPLETION ---" "# --- END DOTFILES KUBECTL COMPLETION ---" \
+        "kubectl completion zsh" "kubectl completion"
     cleanup_stale_brew_zsh_plugins_in_zshrc "$shell_rc"
     cleanup_gpg_tty_in_zshrc "$shell_rc"
     collapse_empty_lines_in_zshrc "$shell_rc"
@@ -656,6 +695,7 @@ EOF
 
     ensure_gpg_tty_in_zshrc "$SHELL_RC"
     normalize_zshrc "$SHELL_RC"
+    ensure_kubectl_completion_in_zshrc "$SHELL_RC"
     ensure_syntax_highlighting_in_zshrc "$SHELL_RC"
 
     set +e
