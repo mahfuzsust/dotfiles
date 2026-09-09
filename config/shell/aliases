@@ -30,6 +30,101 @@ gcob() {
   git checkout -b "$1"
 }
 
+grr() {
+  git rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "grr: not a git repository" >&2
+    return 1
+  }
+
+  git reset --hard HEAD
+  git clean -fd
+}
+
+_git_base_branch() {
+  local branch=""
+
+  if git show-ref --verify --quiet refs/heads/main; then
+    branch=main
+  elif git show-ref --verify --quiet refs/heads/master; then
+    branch=master
+  elif git show-ref --verify --quiet refs/remotes/origin/main; then
+    branch=main
+  elif git show-ref --verify --quiet refs/remotes/origin/master; then
+    branch=master
+  else
+    echo "gn: unable to find main or master branch" >&2
+    return 1
+  fi
+
+  printf '%s' "$branch"
+}
+
+gn() {
+  local branch="$1" base="" stashed=0
+
+  if [[ -z "$branch" ]]; then
+    echo "usage: gn <branch-name>" >&2
+    return 1
+  fi
+
+  git rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "gn: not a git repository" >&2
+    return 1
+  }
+
+  if [[ -n "$(git status --porcelain)" ]]; then
+    git stash push -u -m "gn: auto-stash for $branch" || return 1
+    stashed=1
+  fi
+
+  base="$(_git_base_branch)" || {
+    (( stashed )) && git stash pop
+    return 1
+  }
+
+  if git show-ref --verify --quiet "refs/heads/$base"; then
+    git checkout "$base" || {
+      (( stashed )) && git stash pop
+      return 1
+    }
+  elif git show-ref --verify --quiet "refs/remotes/origin/$base"; then
+    git fetch origin "$base" 2>/dev/null || true
+    git checkout -b "$base" "origin/$base" || {
+      (( stashed )) && git stash pop
+      return 1
+    }
+  else
+    echo "gn: base branch $base not found locally or on origin" >&2
+    (( stashed )) && git stash pop
+    return 1
+  fi
+
+  if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    git pull --ff-only || {
+      (( stashed )) && git stash pop
+      return 1
+    }
+  elif git remote get-url origin >/dev/null 2>&1 \
+    && git rev-parse --verify "origin/$base" >/dev/null 2>&1; then
+    git pull --ff-only origin "$base" || {
+      (( stashed )) && git stash pop
+      return 1
+    }
+  fi
+
+  git checkout -b "$branch" || {
+    (( stashed )) && git stash pop
+    return 1
+  }
+
+  if (( stashed )); then
+    git stash pop || {
+      echo "gn: branch created; resolve stash conflicts manually" >&2
+      return 1
+    }
+  fi
+}
+
 # Conventional commit helper: add all, pick type, enter message
 alias gac="$HOME/.config/git/gac"
 

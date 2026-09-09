@@ -193,6 +193,8 @@ Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to 
 | `gs` | `git status -sb` |
 | `gco` | `git checkout` |
 | `gcob <name>` | `git checkout -b <name>` |
+| `grr` | discard all local changes (`git reset --hard` + `git clean -fd`) |
+| `gn <name>` | create branch with changeset from `main`/`master` |
 | `gbd` | `git branch -d` |
 | `gp` | `git pull` |
 | `gpp` | `git push` (uses `-u origin <branch>` when no upstream is set) |
