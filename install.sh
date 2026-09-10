@@ -119,6 +119,18 @@ defaults write com.googlecode.iterm2 PromptOnQuit -bool false
 # Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
 defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
 
+# --- VS Code / Cursor (shared settings) ---
+
+VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
+CURSOR_USER_DIR="$HOME/Library/Application Support/Cursor/User"
+
+mkdir -p "$VSCODE_USER_DIR" "$CURSOR_USER_DIR"
+link_file "$DOTFILES_DIR/config/editor/settings.json" "$VSCODE_USER_DIR/settings.json"
+link_file "$DOTFILES_DIR/config/editor/settings.json" "$CURSOR_USER_DIR/settings.json"
+
+chmod +x "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
+"$DOTFILES_DIR/config/editor/install-catppuccin.sh"
+
 # 1. Link shell config into ~/.config/shell
 mkdir -p "$CONFIG_DIR/shell"
 for shell_file in "$DOTFILES_DIR/config/shell"/*(N); do
