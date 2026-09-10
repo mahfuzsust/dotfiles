@@ -1,0 +1,10 @@
+{
+  "workbench.colorTheme": "Catppuccin Mocha",
+  "editor.fontSize": 16,
+  "editor.formatOnSave": true,
+  "files.autoSave": "onWindowChange",
+  "editor.fontFamily": "Fira Code",
+  "editor.fontLigatures": true,
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorBlinking": "expand"
+}
