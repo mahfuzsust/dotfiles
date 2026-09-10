@@ -42,10 +42,10 @@ The installer is idempotent — safe to run multiple times.
 | Step | Action |
 |------|--------|
 | Homebrew | Installs Homebrew if missing |
-| Packages | Runs `brew bundle` from the `Brewfile` |
+| Packages | Runs `brew update`, `brew upgrade`, then `brew bundle` from the `Brewfile` |
 | Symlinks | Links config files into `~/.config` and other standard paths |
 | Git | Sets global Git config (default branch, global ignore) |
-| iTerm2 | Links dynamic profile and applies macOS defaults |
+| iTerm2 | Builds profile from Catppuccin Mocha theme |
 | Zsh | Fixes compinit warnings, wires plugins, sources aliases and fzf |
 | Reload | Sources `~/.zshrc` at the end |
 
@@ -270,13 +270,32 @@ Symlinked to three locations so one file drives all ignore behaviour:
 
 ---
 
+## tmux
+
+Config: `config/tmux/tmux.conf` (linked to `~/.tmux.conf`).
+
+iTerm2 starts or attaches session `main` via `~/.config/iterm2/tmux-start.zsh`.
+
+**Prefix:** `Ctrl+b`
+
+| Keys | Action |
+|------|--------|
+| `v` | vertical split (side by side) |
+| `\\` | horizontal split (top / bottom) |
+| `r` | reload tmux config |
+
+Click a pane or status-bar tab to switch. After changing config, run `dotinstall` or `Ctrl+b r`. If needed: `tmux kill-server` then open a new iTerm tab.
+
+---
+
 ## iTerm2
 
-- Dynamic profile linked from `config/iterm2/profile.json` (font, size, colors)
+- Profile built at install from `config/iterm2/profile.base.json` + [Catppuccin Mocha](https://github.com/mbadolato/iTerm2-Color-Schemes/blob/master/schemes/Catppuccin%20Mocha.itermcolors) (downloaded during `dotinstall`)
+- Tmux startup script linked to `~/.config/iterm2/tmux-start.zsh`
 - Quit confirmation disabled
 - Tab style set to dark
 
-Restart iTerm2 after install to pick up profile changes.
+Restart iTerm2 after install to pick up profile and theme changes.
 
 ---
 
@@ -288,6 +307,15 @@ If you only need part of the setup without a full reinstall:
 # Symlink configs only (from repo root)
 DOTFILES=~/dotfiles
 ln -sfn "$DOTFILES/config/shell/aliases" ~/.config/shell/aliases
+ln -sfn "$DOTFILES/config/tmux/tmux.conf" ~/.tmux.conf
+ln -sfn "$DOTFILES/config/iterm2/tmux-start.zsh" ~/.config/iterm2/tmux-start.zsh
+chmod +x ~/.config/iterm2/tmux-start.zsh
+curl -fsSL "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors" \
+  -o ~/.config/iterm2/Catppuccin\ Mocha.itermcolors
+python3 "$DOTFILES/config/iterm2/build-profile.py" \
+  "$DOTFILES/config/iterm2/profile.base.json" \
+  ~/.config/iterm2/Catppuccin\ Mocha.itermcolors \
+  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/profile.json"
 ln -sfn "$DOTFILES/config/git/gac" ~/.config/git/gac
 ln -sfn "$DOTFILES/config/git/gpr" ~/.config/git/gpr
 ln -sfn "$DOTFILES/config/git/gclean" ~/.config/git/gclean

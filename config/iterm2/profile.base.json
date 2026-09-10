@@ -1,0 +1,12 @@
+{
+  "Profiles": [
+    {
+      "Name": "Default",
+      "Guid": "dotfiles-default-profile",
+      "Normal Font": "FiraCode-Regular 16",
+      "Use Non-ASCII Font": false,
+      "Custom Command": "Yes",
+      "Command": "/bin/zsh -l ~/.config/iterm2/tmux-start.zsh"
+    }
+  ]
+}

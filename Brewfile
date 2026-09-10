@@ -23,6 +23,8 @@ brew "mongosh" # Mongosh is a command-line tool for managing MongoDB
 brew "sbt" # Sbt is a build tool for Scala
 brew "minikube" # Minikube is a tool for running Kubernetes locally
 brew "kubectl" # Kubectl is a command-line tool for managing Kubernetes clusters
+brew "tree" # Tree is a command-line tool for displaying directories as a tree
+brew "tmux" # Tmux is a terminal multiplexer
 
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
@@ -41,5 +43,6 @@ cask "notion" # Notion is a note-taking and project management tool
 cask "obsidian" # Obsidian is a note-taking and knowledge management tool
 cask "postman" # Postman is a REST client for testing and developing APIs
 cask "mahfuzsust/tap/passbook" # Passbook is a password manager
+cask "netnewswire" # Netnewswire is a RSS reader
 
 npm "corepack" # Corepack is a tool for managing the core packages of a JavaScript project

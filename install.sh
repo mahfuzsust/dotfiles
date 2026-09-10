@@ -17,7 +17,11 @@ else
     echo "✅ Homebrew is already installed."
 fi
 
-# 3. Install packages via Brewfile
+# 3. Update Homebrew and install packages via Brewfile
+echo "🔄 Updating Homebrew..."
+brew update
+echo "⬆️  Upgrading Homebrew packages..."
+brew upgrade -y
 echo "🍺 Bundling Homebrew packages..."
 brew bundle --file="$DOTFILES_DIR/Brewfile"
 
@@ -39,6 +43,14 @@ echo "📂 Setting up symlinks..."
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
 link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
+link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$HOME/.tmux.conf"
+link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$CONFIG_DIR/tmux/tmux.conf"
+link_file "$DOTFILES_DIR/config/tmux/status-right.sh" "$CONFIG_DIR/tmux/status-right.sh"
+chmod +x "$CONFIG_DIR/tmux/status-right.sh"
+if command -v tmux &>/dev/null; then
+    tmux source-file "$HOME/.tmux.conf" 2>/dev/null || true
+    echo "🔄 Reloaded tmux config"
+fi
 
 # --- THE IGNORE FILE WIRING ---
 
@@ -74,16 +86,37 @@ link_file "$DOTFILES_DIR/ignore" "$HOME/.ignore"
 
 echo "⚙️ Configuring iTerm2..."
 
-# 1. Link the Dynamic Profile (Handles Font, Size, and Colors)
 ITERM_PROFILE_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-mkdir -p "$ITERM_PROFILE_DIR"
-link_file "$DOTFILES_DIR/config/iterm2/profile.json" "$ITERM_PROFILE_DIR/profile.json"
+ITERM_THEME_URL="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors"
+ITERM_THEME="$CONFIG_DIR/iterm2/Catppuccin Mocha.itermcolors"
+ITERM_PROFILE_BASE="$DOTFILES_DIR/config/iterm2/profile.base.json"
+ITERM_PROFILE_OUT="$ITERM_PROFILE_DIR/profile.json"
 
-# 2. Disable the "Quit iTerm2?" prompt
+mkdir -p "$CONFIG_DIR/iterm2"
+mkdir -p "$ITERM_PROFILE_DIR"
+
+link_file "$DOTFILES_DIR/config/iterm2/tmux-start.zsh" "$CONFIG_DIR/iterm2/tmux-start.zsh"
+chmod +x "$CONFIG_DIR/iterm2/tmux-start.zsh"
+chmod +x "$DOTFILES_DIR/config/iterm2/build-profile.py"
+
+echo "⬇️  Downloading Catppuccin Mocha iTerm2 theme..."
+curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
+
+# Remove stale symlink from older installs (profile is generated here, not in dotfiles)
+rm -f "$ITERM_PROFILE_OUT"
+
+python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
+    "$ITERM_PROFILE_BASE" \
+    "$ITERM_THEME" \
+    "$ITERM_PROFILE_OUT"
+echo "🎨 Built iTerm2 profile from Catppuccin Mocha theme"
+
+rm -f "$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch/set-default-profile.py" 2>/dev/null || true
+
+# Disable the "Quit iTerm2?" prompt
 defaults write com.googlecode.iterm2 PromptOnQuit -bool false
 
-# 3. Force iTerm2's window chrome to Dark Theme
-# 0 = Light, 1 = Dark, 2 = Minimal
+# Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
 defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
 
 # 1. Link shell config into ~/.config/shell
