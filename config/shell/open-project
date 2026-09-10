@@ -1,0 +1,151 @@
+# Pick a directory with fzf, then open it in an editor.
+# Alt+d (∂) runs fzf-open-project-widget (same fd search as Alt+c / fzf-cd-widget).
+
+_open_project_pick_dir() {
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  FZF_DEFAULT_COMMAND=${FZF_ALT_C_COMMAND:-} \
+  FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse --walker=dir,follow,hidden --scheme=path" "${FZF_ALT_C_OPTS-} +m") \
+  FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) --prompt='Project> ' < /dev/tty
+}
+
+_open_project_available_editors() {
+  local -a editors=(cursor code vim idea zed)
+  local editor
+
+  for editor in "${editors[@]}"; do
+    case "$editor" in
+      cursor) command -v cursor >/dev/null && print -r -- cursor ;;
+      code) command -v code >/dev/null && print -r -- code ;;
+      vim)
+        if command -v vim >/dev/null 2>&1 || command -v nvim >/dev/null 2>&1; then
+          print -r -- vim
+        fi
+        ;;
+      idea)
+        command -v idea >/dev/null && print -r -- idea && continue
+        [[ -d "/Applications/IntelliJ IDEA.app" ]] && print -r -- idea
+        ;;
+      zed)
+        command -v zed >/dev/null && print -r -- zed && continue
+        [[ -d "/Applications/Zed.app" ]] && print -r -- zed
+        ;;
+    esac
+  done
+}
+
+_open_project_pick_editor() {
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  local editors="$(_open_project_available_editors)"
+  local list_file
+
+  [[ -n "$editors" ]] || {
+    echo "open-project: no supported editors found (cursor, code, vim, idea, zed)" >&2
+    return 1
+  }
+
+  list_file="$(mktemp "${TMPDIR:-/tmp}/open-project-editors.XXXXXX")" || return 1
+  print -r -- "$editors" > "$list_file"
+  trap 'command rm -f "$list_file"' EXIT INT TERM
+
+  # fzf-tmux mishandles piped stdin; use FZF_DEFAULT_COMMAND like the dir picker.
+  FZF_DEFAULT_COMMAND="command cat $(print -r -- ${(q)list_file})" \
+  FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse" "") \
+  FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) --prompt='Editor> ' < /dev/tty
+}
+
+_open_project_open() {
+  local editor="$1" dir="$2"
+
+  dir="${dir:A}"
+
+  case "$editor" in
+    cursor)
+      command cursor "$dir" &>/dev/null &
+      ;;
+    code)
+      command code -n "$dir" &>/dev/null &
+      ;;
+    vim)
+      if command -v vim >/dev/null 2>&1; then
+        command vim "$dir"
+      else
+        command nvim "$dir"
+      fi
+      ;;
+    idea)
+      if command -v idea >/dev/null 2>&1; then
+        command idea "$dir" &>/dev/null &
+      else
+        open -a "IntelliJ IDEA" "$dir"
+      fi
+      ;;
+    zed)
+      if command -v zed >/dev/null 2>&1; then
+        command zed "$dir" &>/dev/null &
+      else
+        open -a Zed "$dir"
+      fi
+      ;;
+    *)
+      echo "open-project: unknown editor: $editor" >&2
+      return 1
+      ;;
+  esac
+}
+
+open-project() {
+  emulate -L zsh
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  local dir editor
+
+  (( $+functions[__fzfcmd] && $+functions[__fzf_defaults] )) || {
+    echo "open-project: fzf key bindings not loaded (source ~/.config/fzf/fzf.env first)" >&2
+    return 1
+  }
+
+  command -v fzf >/dev/null 2>&1 || {
+    echo "open-project: fzf not found" >&2
+    return 1
+  }
+
+  dir="$(_open_project_pick_dir)" || return $?
+  [[ -n "$dir" ]] || return 0
+
+  editor="$(_open_project_pick_editor)" || return $?
+  [[ -n "$editor" ]] || return 0
+
+  _open_project_open "$editor" "$dir"
+}
+
+fzf-open-project-widget() {
+  emulate -L zsh
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  local dir editor
+
+  (( $+functions[__fzfcmd] && $+functions[__fzf_defaults] )) || {
+    zle -M "open-project: fzf key bindings not loaded"
+    return 1
+  }
+
+  dir="$(_open_project_pick_dir)" || return $?
+  if [[ -z "$dir" ]]; then
+    zle redisplay
+    return 0
+  fi
+
+  editor="$(_open_project_pick_editor)" || return $?
+  if [[ -z "$editor" ]]; then
+    zle redisplay
+    return 0
+  fi
+
+  _open_project_open "$editor" "$dir"
+  zle reset-prompt
+}
+
+zle -N fzf-open-project-widget
+bindkey "∂" fzf-open-project-widget
