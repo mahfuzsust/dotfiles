@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECTS_DIR="${GREVIEW_PROJECTS_DIR:-$HOME/projects}"
+PREVIEW_DIR="${GREVIEW_DIR:-$PROJECTS_DIR/.preview}"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: greview <github-pr-url>
+
+Prepare a GitHub pull request for review in IntelliJ IDEA:
+  - clone git@github.com:owner/repo.git into ~/projects/<repo> when missing
+  - check out the PR in ~/projects/.preview/<repo>-pr-<number> (keeps your main checkout)
+  - open the project and a directory diff against the PR base (main/master)
+EOF
+}
+
+require_cmd() {
+  local cmd=$1 message=$2
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "greview: $message" >&2
+    exit 1
+  fi
+}
+
+require_gh() {
+  require_cmd gh "gh CLI not found. Install with: brew install gh"
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "greview: gh not authenticated. Run: gh auth login" >&2
+    exit 1
+  fi
+}
+
+idea_is_running() {
+  pgrep -f "com.jetbrains.intellij" >/dev/null 2>&1 \
+    || pgrep -f "IntelliJ IDEA" >/dev/null 2>&1
+}
+
+wait_for_idea_startup() {
+  local waited=0 lock_file=""
+
+  if idea_is_running; then
+    return 0
+  fi
+
+  while (( waited < 45 )); do
+    for lock_file in "$HOME"/Library/Application\ Support/JetBrains/IntelliJIdea*/.lock; do
+      [[ -f "$lock_file" ]] && return 0
+    done
+    sleep 1
+    (( waited++ ))
+  done
+
+  echo "greview: timed out waiting for IntelliJ IDEA to start" >&2
+  return 1
+}
+
+open_idea_review() {
+  local project=$1 left=$2 right=$3
+  local was_running=0
+
+  if idea_is_running; then
+    was_running=1
+  fi
+
+  if command -v idea >/dev/null 2>&1; then
+    idea "$project" &>/dev/null &
+    if (( ! was_running )); then
+      wait_for_idea_startup || return 1
+      sleep 2
+    else
+      sleep 1
+    fi
+    idea diff "$left" "$right" &>/dev/null &
+    return 0
+  fi
+
+  if [[ -d "/Applications/IntelliJ IDEA.app" ]]; then
+    open -a "IntelliJ IDEA.app" --args "$project"
+    if (( ! was_running )); then
+      wait_for_idea_startup || return 1
+      sleep 2
+    else
+      sleep 1
+    fi
+    open -a "IntelliJ IDEA.app" --args diff "$left" "$right"
+    return 0
+  fi
+
+  echo "greview: IntelliJ IDEA not found (install the 'idea' launcher or IntelliJ IDEA.app)" >&2
+  exit 1
+}
+
+parse_pr_url() {
+  local url=$1
+  local owner="" repo="" number=""
+
+  url="${url%/}"
+  url="${url%/files}"
+  url="${url%/commits}"
+  url="${url%/checks}"
+
+  if [[ "$url" =~ ^https?://github\.com/([^/]+)/([^/]+)/pull/([0-9]+)$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    number="${BASH_REMATCH[3]}"
+  elif [[ "$url" =~ ^github\.com/([^/]+)/([^/]+)/pull/([0-9]+)$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    number="${BASH_REMATCH[3]}"
+  elif [[ "$url" =~ ^([^/[:space:]]+)/([^/[:space:]]+)#([0-9]+)$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    number="${BASH_REMATCH[3]}"
+  else
+    echo "greview: unsupported URL: $url" >&2
+    echo "greview: expected https://github.com/owner/repo/pull/123" >&2
+    exit 1
+  fi
+
+  repo="${repo%.git}"
+  printf '%s %s %s' "$owner" "$repo" "$number"
+}
+
+worktree_exists() {
+  local repo_dir=$1 worktree_dir=$2
+
+  git -C "$repo_dir" worktree list --porcelain | awk -v path="$worktree_dir" '
+    $1 == "worktree" && $2 == path { found=1 }
+    END { exit !found }
+  '
+}
+
+checkout_pr_worktree() {
+  local repo_dir=$1 worktree_dir=$2 number=$3 owner=$4 repo=$5
+  local checkout_args=(pr checkout "$number" -R "$owner/$repo" --worktree "$worktree_dir")
+  local dirty=""
+
+  mkdir -p "$(dirname "$worktree_dir")"
+
+  if worktree_exists "$repo_dir" "$worktree_dir"; then
+    dirty="$(git -C "$worktree_dir" status --porcelain 2>/dev/null || true)"
+    if [[ -n "$dirty" ]]; then
+      echo "greview: keeping existing worktree changes at $worktree_dir"
+      return 0
+    fi
+
+    echo "greview: refreshing PR worktree at $worktree_dir"
+    checkout_args+=(--force)
+  else
+    echo "greview: creating PR worktree at $worktree_dir"
+  fi
+
+  # gh pr checkout --worktree must run inside the local repository.
+  (
+    cd "$repo_dir"
+    gh "${checkout_args[@]}"
+  )
+}
+
+prepare_diff_dirs() {
+  local worktree_dir=$1 base_ref=$2 pr_number=$3 owner=$4 repo=$5
+  local merge_base="" diff_root="" left="" right=""
+
+  merge_base="$(git -C "$worktree_dir" merge-base "$base_ref" HEAD)"
+  diff_root="${TMPDIR:-/tmp}/greview-${owner}-${repo}-${pr_number}"
+  left="$diff_root/base"
+  right="$diff_root/head"
+
+  rm -rf "$diff_root"
+  mkdir -p "$left" "$right"
+
+  git -C "$worktree_dir" archive "$merge_base" | tar -x -C "$left"
+  rsync -a --delete --exclude='.git' "$worktree_dir/" "$right/"
+}
+
+main() {
+  local url="${1:-}" owner="" repo="" number="" repo_dir="" worktree_dir="" base_ref=""
+  local pr_title="" left="" right=""
+
+  [[ -n "$url" ]] || {
+    usage
+    exit 1
+  }
+
+  require_cmd git "git not found"
+  require_cmd rsync "rsync not found"
+  require_gh
+
+  read -r owner repo number <<< "$(parse_pr_url "$url")"
+  repo_dir="$PROJECTS_DIR/$repo"
+  worktree_dir="$PREVIEW_DIR/${repo}-pr-${number}"
+
+  if [[ ! -e "$repo_dir/.git" ]]; then
+    mkdir -p "$PROJECTS_DIR"
+    echo "greview: cloning git@github.com:${owner}/${repo}.git -> $repo_dir"
+    git clone "git@github.com:${owner}/${repo}.git" "$repo_dir"
+  elif ! git -C "$repo_dir" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "greview: $repo_dir exists but is not a git repository" >&2
+    exit 1
+  fi
+
+  base_ref="$(gh pr view "$number" -R "$owner/$repo" --json baseRefName -q .baseRefName)"
+  pr_title="$(gh pr view "$number" -R "$owner/$repo" --json title -q .title)"
+
+  echo "greview: fetching $owner/$repo"
+  git -C "$repo_dir" fetch origin --prune
+
+  echo "greview: checking out PR #$number ($pr_title)"
+  checkout_pr_worktree "$repo_dir" "$worktree_dir" "$number" "$owner" "$repo"
+
+  if git -C "$worktree_dir" show-ref --verify --quiet "refs/remotes/origin/$base_ref"; then
+    git -C "$worktree_dir" fetch origin "$base_ref"
+    base_ref="origin/$base_ref"
+  elif git -C "$worktree_dir" show-ref --verify --quiet "refs/heads/$base_ref"; then
+    :
+  else
+    echo "greview: base branch '$base_ref' not found locally or on origin" >&2
+    exit 1
+  fi
+
+  prepare_diff_dirs "$worktree_dir" "$base_ref" "$number" "$owner" "$repo"
+  left="${TMPDIR:-/tmp}/greview-${owner}-${repo}-${number}/base"
+  right="${TMPDIR:-/tmp}/greview-${owner}-${repo}-${number}/head"
+
+  echo "greview: opening IntelliJ IDEA project and changeset against ${base_ref#origin/}"
+  open_idea_review "$worktree_dir" "$left" "$right"
+
+  echo "greview: ready to review PR #$number in IntelliJ IDEA"
+}
+
+main "$@"

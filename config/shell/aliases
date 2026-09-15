@@ -133,6 +133,8 @@ alias gpr="$HOME/.config/git/gpr"
 alias gprm="$HOME/.config/git/gpr --default-base"
 alias gclean="$HOME/.config/git/gclean"
 alias gm="git merge"
+alias greview="$HOME/.config/git/greview"
+alias gcl="git clone "
 
 # Run dotfiles installer (reloads shell config in the current session)
 dotinstall() {

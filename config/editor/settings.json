@@ -6,5 +6,9 @@
   "editor.fontFamily": "Fira Code",
   "editor.fontLigatures": true,
   "editor.cursorSmoothCaretAnimation": "on",
-  "editor.cursorBlinking": "expand"
+  "editor.cursorBlinking": "expand",
+  "chat.viewSessions.orientation": "stacked",
+  "chat.tools.terminal.autoApprove": {
+    "go": true
+  }
 }

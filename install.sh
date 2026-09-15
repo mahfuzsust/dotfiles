@@ -25,6 +25,18 @@ brew upgrade -y
 echo "🍺 Bundling Homebrew packages..."
 brew bundle --file="$DOTFILES_DIR/Brewfile"
 
+# go-task and taskwarrior both ship a "task" binary. Keep taskwarrior as
+# "task" (go-task is installed with link: false in the Brewfile) and expose
+# go-task as "tk".
+brew unlink go-task >/dev/null 2>&1 || true
+brew link task 2>/dev/null || true
+go_task_bin="$(brew --prefix go-task)/bin/task"
+tk_bin="$(brew --prefix)/bin/tk"
+if [[ -x "$go_task_bin" ]]; then
+    ln -sfn "$go_task_bin" "$tk_bin"
+    echo "🔗 Linked: $tk_bin -> $go_task_bin"
+fi
+
 # 4. Helper function for symlinking
 link_file() {
     local src=$1
@@ -139,9 +151,11 @@ done
 link_file "$DOTFILES_DIR/config/git/gac" "$CONFIG_DIR/git/gac"
 link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
 link_file "$DOTFILES_DIR/config/git/gclean" "$CONFIG_DIR/git/gclean"
+link_file "$DOTFILES_DIR/config/git/greview" "$CONFIG_DIR/git/greview"
 link_file "$DOTFILES_DIR/config/git/setup-gpg" "$CONFIG_DIR/git/setup-gpg"
 rm -f "$CONFIG_DIR/git/gpgcopy" "$CONFIG_DIR/git/git_aliases" 2>/dev/null || true
-chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/setup-gpg"
+rm -f "$CONFIG_DIR/git/preview" 2>/dev/null || true
+chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/greview" "$CONFIG_DIR/git/setup-gpg"
 
 git config --global --unset include.path 2>/dev/null || true
 

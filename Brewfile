@@ -3,7 +3,8 @@ brew "asdf" # Asdf is a tool for managing multiple versions of programming langu
 brew "bash" # Bash is a command-line shell
 brew "coreutils" # Coreutils is a collection of GNU utilities for file and text manipulation
 brew "git" # Git is a distributed version control system
-brew "go-task" # Go-task is a task runner for Go
+brew "go-task", link: false # Go-task task runner (exposed as tk after install)
+brew "task" # Taskwarrior (exposed as task)
 brew "neovim" # Neovim is a modern, fast, and customizable text editor
 brew "nvm" # Nvm is a tool for managing multiple versions of Node.js
 brew "protobuf" # Protobuf is a language-neutral, platform-neutral, extensible mechanism for serializing structured data
@@ -25,7 +26,7 @@ brew "minikube" # Minikube is a tool for running Kubernetes locally
 brew "kubectl" # Kubectl is a command-line tool for managing Kubernetes clusters
 brew "tree" # Tree is a command-line tool for displaying directories as a tree
 brew "tmux" # Tmux is a terminal multiplexer
-
+brew "vit" # Vit is a command-line tool for viewing and editing TaskWarrior tasks
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
 brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions
