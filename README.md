@@ -66,7 +66,8 @@ The installer is idempotent — safe to run multiple times.
 | `awscli`, `gcloud-cli` (cask) | Cloud CLIs |
 | `terraform` (HashiCorp tap) | Infrastructure as code |
 | `mongosh` | MongoDB shell |
-| `go-task` | Task runner |
+| `go-task` | Task runner exposed as `tk` |
+| `task` | Taskwarrior exposed as `task` |
 
 ### Zsh plugins (Homebrew)
 
@@ -165,6 +166,14 @@ Custom editor for the description:
 export GIT_PR_EDITOR=vim
 ```
 
+### `greview` — review a pull request in IntelliJ IDEA
+
+```bash
+greview https://github.com/owner/repo/pull/123
+```
+
+Clones into `~/projects/<repo>` if needed (SSH), checks out the PR in a separate worktree under `~/projects/.preview/`, opens IntelliJ IDEA, and shows a diff against the PR base branch.
+
 ### `gclean` — branch cleanup
 
 ```bash
@@ -201,6 +210,7 @@ Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to 
 | `gac` | `~/.config/git/gac` |
 | `gpr` | interactive PR via `gh` (choose base branch) |
 | `gprm` | PR via `gh` into repo default branch |
+| `greview` | review a GitHub PR in IntelliJ IDEA |
 | `gclean` | prune merged gone branches; list/delete untracked local branches |
 | `dotinstall` | run `~/dotfiles/install.sh` |
 | `search <pattern> [path]` | search with ripgrep; `*text` = ends with, `text*` = starts with |
@@ -318,8 +328,9 @@ python3 "$DOTFILES/config/iterm2/build-profile.py" \
   "$HOME/Library/Application Support/iTerm2/DynamicProfiles/profile.json"
 ln -sfn "$DOTFILES/config/git/gac" ~/.config/git/gac
 ln -sfn "$DOTFILES/config/git/gpr" ~/.config/git/gpr
+ln -sfn "$DOTFILES/config/git/greview" ~/.config/git/greview
 ln -sfn "$DOTFILES/config/git/gclean" ~/.config/git/gclean
-chmod +x ~/.config/git/gac ~/.config/git/gpr ~/.config/git/gclean
+chmod +x ~/.config/git/gac ~/.config/git/gpr ~/.config/git/greview ~/.config/git/gclean
 source ~/.config/shell/aliases
 
 # Git defaults
