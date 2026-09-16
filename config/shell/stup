@@ -1,0 +1,54 @@
+# work standup: yesterday/today tasks (+ Friday when run on Monday).
+
+_stup_filter() {
+  local date_filter="(start:yesterday or end:yesterday or end:today)"
+
+  if [[ "$(date +%u)" == "1" ]]; then
+    date_filter="(start:friday or end:friday or start:yesterday or end:yesterday or end:today)"
+  fi
+
+  print -r -- "$date_filter and +work"
+}
+
+_stup_task() {
+  task \
+    rc.report.all.columns=project,description \
+    rc.report.all.labels=Project,Description \
+    rc.verbose=label \
+    rc.defaultwidth=0 \
+    rc.defaultheight=0 \
+    "$@"
+}
+
+_stup_section() {
+  local title=$1
+  shift
+  local output=""
+
+  output="$(_stup_task "$@" 2>/dev/null)" || true
+  [[ -n "${output//[$' \t']/}" ]] || return 1
+
+  if (( _stup_sections_printed )); then
+    print -r -- ""
+  fi
+
+  print -r -- "====== <$title> ======"
+  print -r -- "$output"
+  _stup_sections_printed=1
+}
+
+stup() {
+  command -v task >/dev/null 2>&1 || {
+    echo "stup: taskwarrior not found" >&2
+    return 1
+  }
+
+  local filter
+  typeset -i _stup_sections_printed=0
+
+  filter="$(_stup_filter)"
+
+  _stup_section "Completed" "$filter" status:completed all
+  _stup_section "In Progress" +work '(status:active or start:today)' status.not:completed all
+  _stup_section "Pending" +work status:pending -ACTIVE all
+}

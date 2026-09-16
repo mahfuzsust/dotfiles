@@ -1,0 +1,265 @@
+# Completed tasks by week/month/quarter/year (last or current).
+
+_summary_usage() {
+  cat >&2 <<'EOF'
+usage: summary [week|month|quarter|year] [last|current] [-tags 'filter']
+
+Examples:
+  summary week last
+  summary week current
+  summary month last -tags '+work'
+  summary quarter current -tags '+personal +work'
+
+Options:
+  -tags    optional tag filter; multiple tags are OR'd (e.g. '+personal +work')
+
+Ranges:
+  week     last = previous Mon–Sun; current = this Mon–today
+  month    calendar month; current runs through today
+  quarter  Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec; current through today
+  year     calendar year; current runs through today
+EOF
+}
+
+_summary_tag_filter() {
+  local raw=$1
+  local -a tags=()
+  local tag expr=""
+
+  if [[ "$raw" == \(* || "$raw" == *" or "* ]]; then
+    print -r -- "$raw"
+    return 0
+  fi
+
+  tags=()
+
+  for tag in ${(s: :-)raw}; do
+    [[ "$tag" == +* ]] || continue
+    tags+=("$tag")
+  done
+
+  if (( ${#tags[@]} == 0 )); then
+    print -r -- "$raw"
+    return 0
+  fi
+
+  if (( ${#tags[@]} == 1 )); then
+    print -r -- "${tags[1]}"
+    return 0
+  fi
+
+  expr="( ${tags[1]}"
+  for tag in "${tags[@]:1}"; do
+    expr+=" or $tag"
+  done
+  expr+=" )"
+  print -r -- "$expr"
+}
+
+_summary_prev_day() {
+  date -j -v-1d -f "%Y-%m-%d" "$1" "+%Y-%m-%d"
+}
+
+_summary_this_monday() {
+  local dow days_since_mon=0
+
+  dow=$(date +%u)
+  days_since_mon=$(( dow - 1 ))
+  date -v-"${days_since_mon}"d +%Y-%m-%d
+}
+
+_summary_next_day() {
+  date -j -v+1d -f "%Y-%m-%d" "$1" "+%Y-%m-%d"
+}
+
+_summary_week_range() {
+  local when=$1
+  local this_monday="" start="" end=""
+
+  this_monday="$(_summary_this_monday)"
+
+  if [[ "$when" == "current" ]]; then
+    start=$this_monday
+    end=$(date +%Y-%m-%d)
+  else
+    start=$(date -j -v-7d -f "%Y-%m-%d" "$this_monday" "+%Y-%m-%d")
+    end=$(date -j -v+6d -f "%Y-%m-%d" "$start" "+%Y-%m-%d")
+  fi
+
+  print -r -- "$start" "$end"
+}
+
+_summary_month_range() {
+  local when=$1
+  local start="" end=""
+
+  if [[ "$when" == "current" ]]; then
+    start=$(date -v1d +%Y-%m-%d)
+    end=$(date +%Y-%m-%d)
+  else
+    start=$(date -v1d -v-1m +%Y-%m-%d)
+    end=$(date -v1d -v-1d +%Y-%m-%d)
+  fi
+
+  print -r -- "$start" "$end"
+}
+
+_summary_quarter_range() {
+  local when=$1
+  local month=0 year=0 q_start=0
+  local start="" end="" next_q_month=0 next_q_year=0
+
+  month=$(date +%m)
+  year=$(date +%Y)
+  month=${month#0}
+  q_start=$(( (month - 1) / 3 * 3 + 1 ))
+
+  if [[ "$when" == "current" ]]; then
+    start=$(printf '%04d-%02d-01' "$year" "$q_start")
+    end=$(date +%Y-%m-%d)
+  else
+    q_start=$(( q_start - 3 ))
+    if (( q_start < 1 )); then
+      q_start=$(( q_start + 12 ))
+      year=$(( year - 1 ))
+    fi
+    start=$(printf '%04d-%02d-01' "$year" "$q_start")
+    next_q_month=$(( q_start + 3 ))
+    next_q_year=$year
+    if (( next_q_month > 12 )); then
+      next_q_month=$(( next_q_month - 12 ))
+      next_q_year=$(( year + 1 ))
+    fi
+    end=$(date -j -v-1d -f "%Y-%m-%d" "$(printf '%04d-%02d-01' "$next_q_year" "$next_q_month")" "+%Y-%m-%d")
+  fi
+
+  print -r -- "$start" "$end"
+}
+
+_summary_year_range() {
+  local when=$1
+  local year=0 start="" end=""
+
+  year=$(date +%Y)
+
+  if [[ "$when" == "current" ]]; then
+    start="${year}-01-01"
+    end=$(date +%Y-%m-%d)
+  else
+    year=$(( year - 1 ))
+    start="${year}-01-01"
+    end="${year}-12-31"
+  fi
+
+  print -r -- "$start" "$end"
+}
+
+_summary_range() {
+  local period=$1 when=$2
+  local start="" end=""
+
+  case "$period" in
+    week) read -r start end <<< "$( _summary_week_range "$when" )" ;;
+    month) read -r start end <<< "$( _summary_month_range "$when" )" ;;
+    quarter) read -r start end <<< "$( _summary_quarter_range "$when" )" ;;
+    year) read -r start end <<< "$( _summary_year_range "$when" )" ;;
+    *)
+      echo "summary: unknown period: $period" >&2
+      return 1
+      ;;
+  esac
+
+  print -r -- "$start" "$end"
+}
+
+_summary_task() {
+  task \
+    rc.report.all.columns=project,description \
+    rc.report.all.labels=Project,Description \
+    rc.verbose=label \
+    rc.defaultwidth=0 \
+    rc.defaultheight=0 \
+    "$@"
+}
+
+summary() {
+  local period="" when=last when_explicit=0 tag_filter=""
+  local start="" end="" start_exclusive="" end_exclusive="" output="" title=""
+  local -a tag_args=()
+
+  if (( $# == 0 )); then
+    _summary_usage
+    return 0
+  fi
+
+  while (( $# > 0 )); do
+    case "$1" in
+      -tags)
+        shift
+        if (( $# == 0 )); then
+          echo "summary: -tags requires a filter" >&2
+          return 1
+        fi
+        tag_filter=$1
+        shift
+        ;;
+      week|month|quarter|year)
+        period=$1
+        shift
+        ;;
+      last|current)
+        when=$1
+        when_explicit=1
+        shift
+        ;;
+      help|-h|--help)
+        _summary_usage
+        return 0
+        ;;
+      *)
+        echo "summary: unknown argument: $1" >&2
+        _summary_usage
+        return 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$period" ]]; then
+    if (( when_explicit )); then
+      period=week
+    else
+      _summary_usage
+      return 0
+    fi
+  fi
+
+  command -v task >/dev/null 2>&1 || {
+    echo "summary: taskwarrior not found" >&2
+    return 1
+  }
+
+  [[ -n "$tag_filter" ]] && tag_args=("$(_summary_tag_filter "$tag_filter")")
+
+  read -r start end <<< "$( _summary_range "$period" "$when" )" || return 1
+  start_exclusive="$(_summary_prev_day "$start")"
+  end_exclusive="$(_summary_next_day "$end")"
+  title="Completed — $period $when ($start .. $end)"
+
+  output="$(
+    _summary_task \
+      "${tag_args[@]}" \
+      status:completed \
+      "end.after:${start_exclusive}" \
+      "end.before:${end_exclusive}" \
+      all 2>/dev/null
+  )" || true
+
+  if [[ -z "${output//[$' \t']/}" ]]; then
+    print -r -- "====== <$title> ======"
+    print -r -- "(no completed tasks)"
+    return 0
+  fi
+
+  print -r -- "====== <$title> ======"
+  print -r -- "$output"
+}
