@@ -20,10 +20,10 @@ fi
 # 3. Update Homebrew and install packages via Brewfile
 echo "🔄 Updating Homebrew..."
 brew update
-echo "⬆️  Upgrading Homebrew packages..."
-brew upgrade -y
-echo "🍺 Bundling Homebrew packages..."
-brew bundle --file="$DOTFILES_DIR/Brewfile"
+echo "🍺 Installing/upgrading Brewfile packages..."
+if ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
+    echo "⚠️  brew bundle had failures; continuing with symlinks and shell setup" >&2
+fi
 
 # go-task and taskwarrior both ship a "task" binary. Keep taskwarrior as
 # "task" (go-task is installed with link: false in the Brewfile) and expose
