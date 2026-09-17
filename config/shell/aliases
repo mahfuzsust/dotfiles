@@ -142,7 +142,7 @@ dotinstall() {
   set +e
   source "$HOME/.zshrc" 2>/dev/null
   set -e
-  echo "✅ Shell configuration reloaded"
+  echo "Shell configuration reloaded"
 }
 
 # Load modular shell helpers

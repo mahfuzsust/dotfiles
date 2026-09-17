@@ -5,24 +5,24 @@ set -e # Exit on error
 DOTFILES_DIR="${0:A:h}"
 CONFIG_DIR="$HOME/.config"
 
-echo "🚀 Starting dotfiles installation..."
+echo "Starting dotfiles installation..."
 
 # 2. Install Homebrew if it isn't installed
 if ! command -v brew &> /dev/null; then
-    echo "📦 Installing Homebrew..."
+    echo "Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     # Load brew into current shell session for the rest of the script
     eval "$(/opt/homebrew/bin/brew shellenv)"
 else
-    echo "✅ Homebrew is already installed."
+    echo "Homebrew is already installed."
 fi
 
 # 3. Update Homebrew and install packages via Brewfile
-echo "🔄 Updating Homebrew..."
+echo "Updating Homebrew..."
 brew update
-echo "🍺 Installing/upgrading Brewfile packages..."
+echo "Installing/upgrading Brewfile packages..."
 if ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
-    echo "⚠️  brew bundle had failures; continuing with symlinks and shell setup" >&2
+    echo "brew bundle had failures; continuing with symlinks and shell setup" >&2
 fi
 
 # go-task and taskwarrior both ship a "task" binary. Keep taskwarrior as
@@ -34,7 +34,7 @@ go_task_bin="$(brew --prefix go-task)/bin/task"
 tk_bin="$(brew --prefix)/bin/tk"
 if [[ -x "$go_task_bin" ]]; then
     ln -sfn "$go_task_bin" "$tk_bin"
-    echo "🔗 Linked: $tk_bin -> $go_task_bin"
+    echo "Linked: $tk_bin -> $go_task_bin"
 fi
 
 # 4. Helper function for symlinking
@@ -47,10 +47,10 @@ link_file() {
 
     # -s: symbolic, -f: force (overwrite existing), -n: treat dest as normal file if it's a symlink to a dir
     ln -sfn "$src" "$dest"
-    echo "🔗 Linked: $dest -> $src"
+    echo "Linked: $dest -> $src"
 }
 
-echo "📂 Setting up symlinks..."
+echo "Setting up symlinks..."
 
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
@@ -61,7 +61,7 @@ link_file "$DOTFILES_DIR/config/tmux/status-right.sh" "$CONFIG_DIR/tmux/status-r
 chmod +x "$CONFIG_DIR/tmux/status-right.sh"
 if command -v tmux &>/dev/null; then
     tmux source-file "$HOME/.tmux.conf" 2>/dev/null || true
-    echo "🔄 Reloaded tmux config"
+    echo "Reloaded tmux config"
 fi
 
 # --- THE IGNORE FILE WIRING ---
@@ -74,17 +74,17 @@ git config --global rerere.enabled true
 
 if command -v gh &>/dev/null; then
     if gh extension list 2>/dev/null | grep -q 'gh-stack'; then
-        echo "✅ gh-stack extension is already installed."
+        echo "gh-stack extension is already installed."
     else
-        echo "📦 Installing gh extension: gh-stack..."
+        echo "Installing gh extension: gh-stack..."
         if gh extension install github/gh-stack; then
-            echo "✅ gh-stack extension installed."
+            echo "gh-stack extension installed."
         else
-            echo "⚠️  Failed to install gh-stack extension (try: gh auth login)" >&2
+            echo "Failed to install gh-stack extension (try: gh auth login)" >&2
         fi
     fi
 else
-    echo "⚠️  gh CLI not found; skipping gh-stack extension install"
+    echo "gh CLI not found; skipping gh-stack extension install"
 fi
 
 # 2. For standalone fd (Native XDG path)
@@ -96,7 +96,7 @@ link_file "$DOTFILES_DIR/ignore" "$HOME/.ignore"
 
 # --- iTerm2 Configuration ---
 
-echo "⚙️ Configuring iTerm2..."
+echo "Configuring iTerm2..."
 
 ITERM_PROFILE_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
 ITERM_THEME_URL="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors"
@@ -111,7 +111,7 @@ link_file "$DOTFILES_DIR/config/iterm2/tmux-start.zsh" "$CONFIG_DIR/iterm2/tmux-
 chmod +x "$CONFIG_DIR/iterm2/tmux-start.zsh"
 chmod +x "$DOTFILES_DIR/config/iterm2/build-profile.py"
 
-echo "⬇️  Downloading Catppuccin Mocha iTerm2 theme..."
+echo "Downloading Catppuccin Mocha iTerm2 theme..."
 curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
 
 # Remove stale symlink from older installs (profile is generated here, not in dotfiles)
@@ -121,7 +121,7 @@ python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
     "$ITERM_PROFILE_BASE" \
     "$ITERM_THEME" \
     "$ITERM_PROFILE_OUT"
-echo "🎨 Built iTerm2 profile from Catppuccin Mocha theme"
+echo "Built iTerm2 profile from Catppuccin Mocha theme"
 
 rm -f "$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch/set-default-profile.py" 2>/dev/null || true
 
@@ -160,34 +160,34 @@ chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$
 git config --global --unset include.path 2>/dev/null || true
 
 # GPG commit signing (creates key if needed, exports public key)
-echo "🔐 Setting up GPG commit signing..."
+echo "Setting up GPG commit signing..."
 "$DOTFILES_DIR/config/git/setup-gpg"
 
 install_oh_my_zsh() {
     local omz_dir="$HOME/.oh-my-zsh"
 
     if [[ -d "$omz_dir" ]]; then
-        echo "✅ Oh My Zsh is already installed."
+        echo "Oh My Zsh is already installed."
         return 0
     fi
 
-    echo "📦 Installing Oh My Zsh..."
+    echo "Installing Oh My Zsh..."
     git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$omz_dir"
-    echo "✅ Oh My Zsh installed."
+    echo "Oh My Zsh installed."
 }
 
 install_zsh_autosuggestions() {
     local plugin_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
 
     if [[ -d "$plugin_dir" ]]; then
-        echo "✅ zsh-autosuggestions is already installed."
+        echo "zsh-autosuggestions is already installed."
         return 0
     fi
 
-    echo "📦 Installing zsh-autosuggestions..."
+    echo "Installing zsh-autosuggestions..."
     mkdir -p "$(dirname "$plugin_dir")"
     git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$plugin_dir"
-    echo "✅ zsh-autosuggestions installed."
+    echo "zsh-autosuggestions installed."
 }
 
 ensure_zsh_autosuggestions_plugin() {
@@ -210,7 +210,7 @@ ensure_zsh_autosuggestions_plugin() {
         print -r -- "$line"
     done <"$shell_rc" >"$temp_rc"
     mv "$temp_rc" "$shell_rc"
-    echo "📝 Added zsh-autosuggestions to Oh My Zsh plugins in $shell_rc"
+    echo "Added zsh-autosuggestions to Oh My Zsh plugins in $shell_rc"
 }
 
 cleanup_gpg_tty_in_zshrc() {
@@ -249,7 +249,7 @@ cleanup_gpg_tty_in_zshrc() {
     mv "$temp_rc" "$shell_rc"
 
     if (( removed )); then
-        echo "🧹 Removed duplicate GPG_TTY entries from $shell_rc"
+        echo "Removed duplicate GPG_TTY entries from $shell_rc"
     fi
 }
 
@@ -283,7 +283,7 @@ ensure_gpg_tty_in_zshrc() {
     mv "$temp_rc" "$shell_rc"
 
     if (( added )); then
-        echo "📝 Ensured GPG_TTY in DOTFILES SETUP in $shell_rc"
+        echo "Ensured GPG_TTY in DOTFILES SETUP in $shell_rc"
     fi
 }
 
@@ -342,7 +342,7 @@ cleanup_stale_brew_zsh_plugins_in_zshrc() {
     mv "$temp_rc" "$shell_rc"
 
     if (( removed )); then
-        echo "🧹 Removed stale Homebrew zsh plugin sources from $shell_rc"
+        echo "Removed stale Homebrew zsh plugin sources from $shell_rc"
     fi
 }
 
@@ -367,19 +367,19 @@ remove_dotfiles_syntax_highlighting_block() {
     done <"$shell_rc" >"$temp_rc"
     mv "$temp_rc" "$shell_rc"
 
-    (( removed )) && echo "🧹 Removed old zsh-syntax-highlighting block from $shell_rc"
+    (( removed )) && echo "Removed old zsh-syntax-highlighting block from $shell_rc"
 }
 
 ensure_syntax_highlighting_in_zshrc() {
     local shell_rc="$1"
 
     if ! command -v brew >/dev/null 2>&1; then
-        echo "⚠️  Homebrew not found; skipping zsh-syntax-highlighting setup" >&2
+        echo "Homebrew not found; skipping zsh-syntax-highlighting setup" >&2
         return 0
     fi
 
     if ! brew --prefix zsh-syntax-highlighting >/dev/null 2>&1; then
-        echo "⚠️  zsh-syntax-highlighting is not installed; run dotinstall to install Brew packages" >&2
+        echo "zsh-syntax-highlighting is not installed; run dotinstall to install Brew packages" >&2
         return 0
     fi
 
@@ -404,7 +404,7 @@ if type brew &>/dev/null; then
 fi
 # --- END DOTFILES SYNTAX HIGHLIGHTING ---
 EOF
-    echo "📝 Added zsh-syntax-highlighting to end of $shell_rc"
+    echo "Added zsh-syntax-highlighting to end of $shell_rc"
 }
 
 ensure_kubectl_completion_in_zshrc() {
@@ -438,7 +438,7 @@ EOF
         print -r -- "$block" >>"$shell_rc"
     fi
 
-    echo "📝 Added kubectl completion to $shell_rc"
+    echo "Added kubectl completion to $shell_rc"
 }
 
 remove_duplicate_dotfiles_blocks() {
@@ -477,7 +477,7 @@ remove_duplicate_dotfiles_blocks() {
     mv "$temp_rc" "$shell_rc"
 
     if (( removed )); then
-        echo "🧹 Removed duplicate ${block_name} block from $shell_rc"
+        echo "Removed duplicate ${block_name} block from $shell_rc"
     fi
 }
 
@@ -526,7 +526,7 @@ remove_source_outside_dotfiles_block() {
     mv "$temp_rc" "$shell_rc"
 
     if (( removed )); then
-        echo "🧹 Removed duplicate ${label} source lines from $shell_rc"
+        echo "Removed duplicate ${label} source lines from $shell_rc"
     fi
 }
 
@@ -567,7 +567,7 @@ cleanup_duplicate_compfix_blocks() {
     mv "$temp_rc" "$shell_rc"
 
     if (( removed )); then
-        echo "🧹 Removed duplicate compfix blocks from $shell_rc"
+        echo "Removed duplicate compfix blocks from $shell_rc"
     fi
 }
 
@@ -601,7 +601,7 @@ collapse_empty_lines_in_zshrc() {
     done
 
     if (( removed )); then
-        echo "🧹 Collapsed extra blank lines in $shell_rc"
+        echo "Collapsed extra blank lines in $shell_rc"
     fi
 }
 
@@ -661,7 +661,7 @@ insert_oh_my_zsh_block() {
         mv "$temp_rc" "$target_file"
     fi
 
-    echo "📝 Added Oh My Zsh to $target_file"
+    echo "Added Oh My Zsh to $target_file"
 }
 
 ensure_oh_my_zsh_in_zshrc() {
@@ -681,7 +681,7 @@ EOF
 
     if [[ ! -f "$shell_rc" ]]; then
         print -r -- "$omz_block" >"$shell_rc"
-        echo "📝 Created $shell_rc with Oh My Zsh"
+        echo "Created $shell_rc with Oh My Zsh"
         return 0
     fi
 
@@ -702,7 +702,7 @@ if command -v brew &>/dev/null; then
     BREW_SHARE="$(brew --prefix)/share"
     if [ -d "$BREW_SHARE" ]; then
         chmod go-w "$BREW_SHARE"
-        echo "🔒 Fixed zsh completion permissions on $BREW_SHARE"
+        echo "Fixed zsh completion permissions on $BREW_SHARE"
     fi
 fi
 
@@ -720,7 +720,7 @@ fi
 EOF
         cat "$SHELL_RC" >> "$TEMP_RC"
         mv "$TEMP_RC" "$SHELL_RC"
-        echo "📝 Added zsh-completions and compfix disable to $SHELL_RC"
+        echo "Added zsh-completions and compfix disable to $SHELL_RC"
     fi
 
     # FZF and remaining plugins (append to the end)
@@ -735,7 +735,7 @@ export GPG_TTY=$(tty)
 source "$HOME/.config/fzf/fzf.env"
 # --- END DOTFILES SETUP ---
 EOF
-        echo "📝 Added plugins and fzf env to $SHELL_RC"
+        echo "Added plugins and fzf env to $SHELL_RC"
     fi
 
     # Shell aliases must load after Oh My Zsh (git plugin defines gpr = pull --rebase)
@@ -749,7 +749,7 @@ unalias gprm 2>/dev/null
 source "$HOME/.config/shell/aliases"
 # --- END DOTFILES ALIASES ---
 EOF
-        echo "📝 Added dotfiles shell aliases to $SHELL_RC"
+        echo "Added dotfiles shell aliases to $SHELL_RC"
     fi
 
     ensure_gpg_tty_in_zshrc "$SHELL_RC"
@@ -761,7 +761,7 @@ EOF
     source "$SHELL_RC" 2>/dev/null
     set -e
 else
-    echo "⚠️  $SHELL_RC not found. Are you using Zsh?"
+    echo "$SHELL_RC not found. Are you using Zsh?"
 fi
 
 reload_shell_config() {
@@ -774,13 +774,13 @@ reload_shell_config() {
     set -e
 }
 
-echo "🎉 Installation complete!"
+echo "Installation complete!"
 
 if [[ -n "${DOTFILES_INSTALL_FROM_DOTINSTALL:-}" ]]; then
     :
 elif [[ -n "$ZSH_VERSION" && "$ZSH_EVAL_CONTEXT" == *:file* ]]; then
     reload_shell_config
-    echo "✅ Shell configuration reloaded"
+    echo "Shell configuration reloaded"
 else
-    echo "↪ Run: source ~/.zshrc"
+    echo "Run: source ~/.zshrc"
 fi

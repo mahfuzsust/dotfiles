@@ -85,11 +85,11 @@ show_public_key() {
     exit 1
   fi
 
-  echo "💾 Public key saved to $pubkey_file"
+  echo "Public key saved to $pubkey_file"
 
   if command -v pbcopy >/dev/null 2>&1; then
     if pbcopy <"$pubkey_file"; then
-      echo "📋 Public key copied to clipboard"
+      echo "Public key copied to clipboard"
     else
       echo "setup-gpg: could not copy public key to clipboard" >&2
     fi
@@ -144,11 +144,11 @@ main() {
     configured_secret="$(resolve_signing_key "$existing_signing_key" || true)"
     if [[ -n "$configured_secret" ]]; then
       git config --global user.signingkey "$configured_secret"
-      echo "✅ GPG signing key already configured: $configured_secret"
+      echo "GPG signing key already configured: $configured_secret"
       return 0
     fi
 
-    echo "⚠️  Git signing key is set but no matching secret key was found; continuing setup."
+    echo "Git signing key is set but no matching secret key was found; continuing setup."
   fi
 
   gpg_email="$(git config --global user.email 2>/dev/null || true)"
@@ -171,7 +171,7 @@ main() {
 
   signing_key="$(gpg_secret_fingerprint "$gpg_email" || true)"
   if [[ -n "$signing_key" ]]; then
-    echo "✅ Using existing secret GPG key for $gpg_email: $signing_key"
+    echo "Using existing secret GPG key for $gpg_email: $signing_key"
     set_ultimate_trust "$signing_key"
   else
     if [[ -t 0 ]]; then
@@ -189,13 +189,13 @@ main() {
     fi
 
     signing_key="$(generate_gpg_key "$gpg_name" "$gpg_email")"
-    echo "✅ Created GPG key: $signing_key"
+    echo "Created GPG key: $signing_key"
     set_ultimate_trust "$signing_key"
     new_key=1
   fi
 
   configure_git_signing "$signing_key" "$gpg_name" "$gpg_email"
-  echo "✅ Git commit signing enabled (user.signingkey=$signing_key)"
+  echo "Git commit signing enabled (user.signingkey=$signing_key)"
   if (( new_key )); then
     show_public_key "$signing_key"
   fi
