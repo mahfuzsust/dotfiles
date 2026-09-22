@@ -1,0 +1,7 @@
+# Copy to user-config.yml and edit before first ./install.sh
+user:
+  name: Your Name
+  email: your_email@example.com
+
+github:
+  username: your-github-username

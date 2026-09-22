@@ -33,6 +33,8 @@ Open a **new terminal tab** when it finishes (or run `source ~/.zshrc`).
 - [Zsh](https://www.zsh.org/) as your default shell (macOS default)
 - A `~/.zshrc` file — [Oh My Zsh](https://ohmyz.sh/) is supported; the installer patches it automatically
 
+One-time manual steps (SSH key, `gh auth`, app logins, and similar) are listed in [`config/manual.md`](config/manual.md).
+
 ---
 
 ## What `install.sh` does
@@ -46,6 +48,7 @@ The installer is idempotent — safe to run multiple times.
 | Symlinks | Links config files into `~/.config` and other standard paths |
 | Git | Sets global Git config (default branch, global ignore) |
 | iTerm2 | Builds profile from Catppuccin Mocha theme |
+| Terminal.app | Imports Chalice Dark as default profile |
 | Zsh | Fixes compinit warnings, wires plugins, sources aliases and fzf |
 | Reload | Sources `~/.zshrc` at the end |
 
@@ -66,8 +69,8 @@ The installer is idempotent — safe to run multiple times.
 | `awscli`, `gcloud-cli` (cask) | Cloud CLIs |
 | `terraform` (HashiCorp tap) | Infrastructure as code |
 | `mongosh` | MongoDB shell |
-| `go-task` | Task runner exposed as `tk` |
-| `task` | Taskwarrior exposed as `task` |
+| `go-task` | Task runner exposed as `task` |
+| `task` | Taskwarrior exposed as `tk` |
 
 ### Zsh plugins (Homebrew)
 
@@ -85,7 +88,12 @@ To add a package, edit `Brewfile` and re-run `./install.sh`.
 
 ## Git configuration
 
-The installer sets these global options:
+From **`user-config.yml`** (copy from `user-config.example.yml`):
+
+- `git config --global user.name` / `user.email` from `user.name` / `user.email`
+- `github.username` → HTTPS→SSH URL rewrite for your repos, `gh` SSH protocol, and `GITHUB_USERNAME` in the shell
+
+The installer also sets:
 
 ```bash
 git config --global core.excludesfile ~/.global_ignore
@@ -306,6 +314,14 @@ Click a pane or status-bar tab to switch. After changing config, run `dotinstall
 - Tab style set to dark
 
 Restart iTerm2 after install to pick up profile and theme changes.
+
+---
+
+## Terminal.app
+
+- Profile **`config/terminal/Chalice Dark.terminal`** (your exported Terminal settings) imported on every `dotinstall`
+- Set as **Default Window Settings** and **Startup Window Settings**
+- Open a **new** Terminal window after install; if import fails, open Terminal once and re-run `config/terminal/install.sh`
 
 ---
 

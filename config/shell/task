@@ -1,0 +1,23 @@
+alias ta="tk add +work +soundcloud "
+alias tap="tk add +personal "
+alias ts="tk start "
+alias tss="tk stop "
+alias td="tk done "
+
+if (( $+functions[compdef] )) && command -v brew >/dev/null; then
+  _tw_completions="$(brew --prefix task 2>/dev/null)/share/zsh/site-functions"
+  if [[ -f "$_tw_completions/_task" ]]; then
+    fpath=("$_tw_completions" $fpath)
+    autoload -Uz _task
+
+    # Taskwarrior completion calls `task`; go-task owns that binary as `task`.
+    _task_tk() {
+      task() { command tk "$@"; }
+      _task "$@"
+      unfunction task 2>/dev/null
+    }
+
+    compdef _task_tk tk ta tap
+  fi
+  unset _tw_completions
+fi

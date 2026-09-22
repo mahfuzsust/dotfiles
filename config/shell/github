@@ -1,0 +1,4 @@
+# GitHub username from user-config.yml (written by install.sh)
+typeset -g _DOTFILES_GITHUB_ENV="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/github.env"
+[[ -f "$_DOTFILES_GITHUB_ENV" ]] && source "$_DOTFILES_GITHUB_ENV"
+unset _DOTFILES_GITHUB_ENV

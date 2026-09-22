@@ -7,6 +7,17 @@ CONFIG_DIR="$HOME/.config"
 
 echo "Starting dotfiles installation..."
 
+USER_CONFIG="$DOTFILES_DIR/user-config.yml"
+SSH_KEY="$HOME/.ssh/id_ed25519"
+# shellcheck source=config/load-user-config.zsh
+source "$DOTFILES_DIR/config/load-user-config.zsh"
+load_user_config "$USER_CONFIG"
+apply_git_user_from_config
+write_github_env "$CONFIG_DIR/dotfiles/github.env"
+apply_github_from_config
+echo "Git user: $USER_NAME <$USER_EMAIL>"
+echo "GitHub user: $GITHUB_USERNAME"
+
 # 2. Install Homebrew if it isn't installed
 if ! command -v brew &> /dev/null; then
     echo "Installing Homebrew..."
@@ -17,24 +28,125 @@ else
     echo "Homebrew is already installed."
 fi
 
-# 3. Update Homebrew and install packages via Brewfile
-echo "Updating Homebrew..."
+ensure_ssh_key() {
+    if [[ -f "$SSH_KEY" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    echo "No SSH key at $SSH_KEY."
+    echo "Running: ssh-keygen -t ed25519 -C \"$USER_EMAIL\""
+    echo "Use the prompts (default path is fine; passphrase is optional)."
+
+    if [[ ! -e /dev/tty ]]; then
+        echo "No TTY for interactive ssh-keygen; run manually:" >&2
+        echo "  ssh-keygen -t ed25519 -C \"$USER_EMAIL\"" >&2
+        exit 1
+    fi
+
+    if ! ssh-keygen -t ed25519 -C "$USER_EMAIL" </dev/tty >/dev/tty; then
+        echo "ssh-keygen failed or was cancelled" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$SSH_KEY" ]]; then
+        echo "Expected key at $SSH_KEY after ssh-keygen" >&2
+        exit 1
+    fi
+
+    echo "SSH public key (copy: pbcopy < ${SSH_KEY}.pub):"
+    cat "${SSH_KEY}.pub"
+    if pbcopy < "${SSH_KEY}.pub" 2>/dev/null; then
+        echo "Public key copied to clipboard — paste at https://github.com/settings/ssh/new"
+    fi
+}
+
+ensure_ssh_config() {
+    local ssh_config="$HOME/.ssh/config"
+    local marker_begin="# --- DOTFILES SSH (macOS keychain) ---"
+    local marker_end="# --- END DOTFILES SSH ---"
+
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    if [[ -f "$ssh_config" ]] && grep -Fq "$marker_begin" "$ssh_config" 2>/dev/null; then
+        echo "SSH config already contains dotfiles keychain block"
+        return 0
+    fi
+
+    if [[ -f "$ssh_config" ]] && grep -Fq 'UseKeychain yes' "$ssh_config" 2>/dev/null \
+        && grep -Fq 'IdentityFile ~/.ssh/id_ed25519' "$ssh_config" 2>/dev/null; then
+        echo "SSH config already configures id_ed25519 with keychain"
+        return 0
+    fi
+
+    {
+        if [[ -f "$ssh_config" ]] && [[ -s "$ssh_config" ]]; then
+            print -r -- ""
+        fi
+        cat <<'EOF'
+# --- DOTFILES SSH (macOS keychain) ---
+Host *
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+# --- END DOTFILES SSH ---
+EOF
+    } >>"$ssh_config"
+
+    chmod 600 "$ssh_config"
+    echo "Appended macOS keychain SSH settings to $ssh_config"
+}
+
+ensure_ssh_key
+ensure_ssh_config
+
+echo "Add ssh-add"
+if [[ -e /dev/tty ]]; then
+    ssh-add --apple-use-keychain "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
+        || ssh-add "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
+        || true
+else
+    ssh-add --apple-use-keychain "$SSH_KEY" 2>/dev/null || ssh-add "$SSH_KEY" 2>/dev/null || true
+fi
+
+echo "Running Brew update"
 brew update
+
+echo "Running Brew upgrade"
+brew upgrade
+
+echo "Running Brew cleanup"
+brew cleanup
+
+# 3. Install packages via Brewfile (no brew update — it fails when global git
+# config rewrites GitHub HTTPS to SSH and the SSH agent has no keys after restart)
 echo "Installing/upgrading Brewfile packages..."
 if ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
     echo "brew bundle had failures; continuing with symlinks and shell setup" >&2
 fi
 
-# go-task and taskwarrior both ship a "task" binary. Keep taskwarrior as
-# "task" (go-task is installed with link: false in the Brewfile) and expose
-# go-task as "tk".
+# go-task and taskwarrior both ship a "task" binary. Neither is linked by
+# brew bundle (link: false in Brewfile); expose go-task as "task" and
+# taskwarrior as "tk" via symlinks to avoid brew link conflicts.
 brew unlink go-task >/dev/null 2>&1 || true
-brew link task 2>/dev/null || true
+brew unlink task >/dev/null 2>&1 || true
+brew_prefix="$(brew --prefix)"
 go_task_bin="$(brew --prefix go-task)/bin/task"
-tk_bin="$(brew --prefix)/bin/tk"
+taskwarrior_bin="$(brew --prefix task)/bin/task"
 if [[ -x "$go_task_bin" ]]; then
-    ln -sfn "$go_task_bin" "$tk_bin"
-    echo "Linked: $tk_bin -> $go_task_bin"
+    ln -sfn "$go_task_bin" "$brew_prefix/bin/task"
+fi
+if [[ -x "$taskwarrior_bin" ]]; then
+    ln -sfn "$taskwarrior_bin" "$brew_prefix/bin/tk"
+fi
+
+echo "Installing taskwarrior-obsidian..."
+chmod +x "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"
+if ! "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"; then
+    echo "taskwarrior-obsidian install had failures; continuing" >&2
 fi
 
 # 4. Helper function for symlinking
@@ -47,7 +159,6 @@ link_file() {
 
     # -s: symbolic, -f: force (overwrite existing), -n: treat dest as normal file if it's a symlink to a dir
     ln -sfn "$src" "$dest"
-    echo "Linked: $dest -> $src"
 }
 
 echo "Setting up symlinks..."
@@ -130,6 +241,14 @@ defaults write com.googlecode.iterm2 PromptOnQuit -bool false
 
 # Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
 defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
+
+# --- macOS Terminal.app (Chalice Dark) ---
+
+echo "Configuring Terminal.app..."
+chmod +x "$DOTFILES_DIR/config/terminal/install.sh"
+if ! "$DOTFILES_DIR/config/terminal/install.sh"; then
+    echo "Terminal.app profile import had failures; see config/manual.md" >&2
+fi
 
 # --- VS Code / Cursor (shared settings) ---
 
@@ -250,6 +369,37 @@ cleanup_gpg_tty_in_zshrc() {
 
     if (( removed )); then
         echo "Removed duplicate GPG_TTY entries from $shell_rc"
+    fi
+}
+
+ensure_local_bin_in_zshrc() {
+    local shell_rc="$1"
+
+    if grep -q 'DOTFILES LOCAL BIN' "$shell_rc" 2>/dev/null \
+        && grep -q '\$HOME/.local/bin' "$shell_rc" 2>/dev/null; then
+        return 0
+    fi
+
+    if ! grep -q "DOTFILES SETUP" "$shell_rc" 2>/dev/null; then
+        return 0
+    fi
+
+    local temp_rc="" added=0
+    temp_rc="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        print -r -- "$line"
+        if [[ "$line" == "export GPG_TTY=\$(tty)" ]] && (( ! added )) \
+            && ! grep -q 'DOTFILES LOCAL BIN' "$shell_rc" 2>/dev/null; then
+            print -r -- ""
+            print -r -- "# DOTFILES LOCAL BIN"
+            print -r -- 'export PATH="$HOME/.local/bin:$PATH"'
+            added=1
+        fi
+    done <"$shell_rc" >"$temp_rc"
+    mv "$temp_rc" "$shell_rc"
+
+    if (( added )); then
+        echo "Ensured ~/.local/bin in PATH in $shell_rc"
     fi
 }
 
@@ -731,6 +881,9 @@ EOF
 # DOTFILES GPG TTY
 export GPG_TTY=$(tty)
 
+# DOTFILES LOCAL BIN
+export PATH="$HOME/.local/bin:$PATH"
+
 # Source fzf configuration
 source "$HOME/.config/fzf/fzf.env"
 # --- END DOTFILES SETUP ---
@@ -753,6 +906,7 @@ EOF
     fi
 
     ensure_gpg_tty_in_zshrc "$SHELL_RC"
+    ensure_local_bin_in_zshrc "$SHELL_RC"
     normalize_zshrc "$SHELL_RC"
     ensure_kubectl_completion_in_zshrc "$SHELL_RC"
     ensure_syntax_highlighting_in_zshrc "$SHELL_RC"
@@ -775,6 +929,7 @@ reload_shell_config() {
 }
 
 echo "Installation complete!"
+echo "Manual steps (SSH, gh auth, app logins): see $DOTFILES_DIR/config/manual.md"
 
 if [[ -n "${DOTFILES_INSTALL_FROM_DOTINSTALL:-}" ]]; then
     :

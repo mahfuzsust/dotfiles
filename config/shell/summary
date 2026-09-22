@@ -173,7 +173,7 @@ _summary_range() {
 }
 
 _summary_task() {
-  task \
+  tk \
     rc.report.all.columns=project,description \
     rc.report.all.labels=Project,Description \
     rc.verbose=label \
@@ -233,8 +233,8 @@ summary() {
     fi
   fi
 
-  command -v task >/dev/null 2>&1 || {
-    echo "summary: taskwarrior not found" >&2
+  command -v tk >/dev/null 2>&1 || {
+    echo "summary: taskwarrior not found (tk)" >&2
     return 1
   }
 

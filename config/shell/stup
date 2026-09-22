@@ -11,7 +11,7 @@ _stup_filter() {
 }
 
 _stup_task() {
-  task \
+  tk \
     rc.report.all.columns=project,description \
     rc.report.all.labels=Project,Description \
     rc.verbose=label \
@@ -38,8 +38,8 @@ _stup_section() {
 }
 
 stup() {
-  command -v task >/dev/null 2>&1 || {
-    echo "stup: taskwarrior not found" >&2
+  command -v tk >/dev/null 2>&1 || {
+    echo "stup: taskwarrior not found (tk)" >&2
     return 1
   }
 
