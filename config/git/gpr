@@ -224,18 +224,63 @@ prompt_pr_state() {
   _GPR_RESULT="$choice"
 }
 
+interactive_rebase_from_base() {
+  local target_base="$1"
+  local onto="origin/$target_base"
+
+  git fetch origin "$target_base" 2>/dev/null || true
+
+  if git show-ref --verify --quiet "refs/remotes/$onto" 2>/dev/null; then
+    :
+  elif git show-ref --verify --quiet "refs/heads/$target_base" 2>/dev/null; then
+    onto="$target_base"
+  else
+    echo "gpr: base branch $target_base not found locally or on origin" >&2
+    exit 1
+  fi
+
+  if [[ ! -e /dev/tty ]]; then
+    echo "gpr: no TTY for interactive rebase (git rebase -i)" >&2
+    exit 1
+  fi
+
+  echo "gpr: interactive rebase onto $onto (commits on this branch only)"
+  if ! git rebase -i --autostash "$onto" </dev/tty >/dev/tty; then
+    echo "gpr: rebase failed or aborted; fix conflicts or run: git rebase --abort" >&2
+    exit 1
+  fi
+}
+
 ensure_branch_pushed() {
-  local branch
+  local branch="" upstream="" remote_ref="" ahead=0 behind=0
   branch="$(current_branch)"
+  remote_ref="origin/$branch"
 
   if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-    local ahead=0
-    ahead="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
-    if [[ "$ahead" -gt 0 ]]; then
-      git push
-    fi
+    upstream='@{u}'
+  elif git show-ref --verify --quiet "refs/remotes/$remote_ref" 2>/dev/null; then
+    upstream="$remote_ref"
   else
     git push -u origin "$branch"
+    return $?
+  fi
+
+  ahead="$(git rev-list --count "$upstream"..HEAD 2>/dev/null || echo 0)"
+  behind="$(git rev-list --count HEAD.."$upstream" 2>/dev/null || echo 0)"
+  if [[ "$ahead" -eq 0 && "$behind" -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ "$behind" -gt 0 ]]; then
+    if [[ "$upstream" == "$remote_ref" ]]; then
+      git push --force-with-lease origin "$branch"
+    else
+      git push --force-with-lease
+    fi
+  elif [[ "$upstream" == "$remote_ref" ]]; then
+    git push origin "$branch"
+  else
+    git push
   fi
 }
 
@@ -291,6 +336,9 @@ main() {
     base="$_GPR_RESULT"
   fi
 
+  ensure_commits_ahead_of_base "$base"
+
+  interactive_rebase_from_base "$base"
   ensure_commits_ahead_of_base "$base"
 
   default_title="$(default_title_for_branch "$base")"

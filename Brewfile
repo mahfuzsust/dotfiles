@@ -31,7 +31,6 @@ brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosug
 brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions
 
 cask "bitwarden" # Bitwarden is a password manager
-cask "font-fira-code" # Fira Code is a monospace font with programming ligatures
 cask "visual-studio-code" # Visual Studio Code is a code editor
 cask "docker-desktop" # Docker Desktop is a containerization platform for desktop
 cask "maccy" # Maccy is a clipboard manager

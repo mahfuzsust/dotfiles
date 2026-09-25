@@ -1,0 +1,5 @@
+<keymap version="1" name="Dotfiles" parent="Mac OS X 10.5+">
+  <action id="Github.Pull.Request.Show.In.Toolwindow">
+    <keyboard-shortcut first-keystroke="meta t" />
+  </action>
+</keymap>

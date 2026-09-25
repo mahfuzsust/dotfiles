@@ -9,6 +9,10 @@ HOOKS_DIR="$HOME/.task/hooks"
 REPO_TMPDIR=""
 REPO_ROOT=""
 
+taskwarrior_obsidian_hooks_present() {
+  [[ -n ${HOOKS_DIR}/*.taskwarrior-obsidian(N) ]]
+}
+
 fetch_taskwarrior_obsidian_repo() {
   [[ -n "$REPO_ROOT" ]] && return 0
 
@@ -34,6 +38,11 @@ cleanup_taskwarrior_obsidian_repo() {
 
 install_taskwarrior_obsidian_binary() {
   local arch="" asset="" tmpdir="" extracted=""
+
+  if [[ -x "$BIN" ]]; then
+    echo "taskwarrior-obsidian already installed: $BIN"
+    return 0
+  fi
 
   case "$(uname -s)" in
     Darwin)
@@ -88,6 +97,11 @@ install_taskwarrior_obsidian_binary() {
 }
 
 install_taskwarrior_obsidian_config() {
+  if [[ -f "$CONFIG_FILE" ]]; then
+    echo "Config already exists: $CONFIG_FILE"
+    return 0
+  fi
+
   fetch_taskwarrior_obsidian_repo || return 1
 
   [[ -f "$REPO_ROOT/config.example.toml" ]] || {
@@ -96,12 +110,6 @@ install_taskwarrior_obsidian_config() {
   }
 
   mkdir -p "$CONFIG_DIR"
-
-  if [[ -f "$CONFIG_FILE" ]]; then
-    echo "Config already exists: $CONFIG_FILE"
-    return 0
-  fi
-
   cp "$REPO_ROOT/config.example.toml" "$CONFIG_FILE"
   echo "Created config: $CONFIG_FILE"
   echo "Edit vault path and directories before running taskwarrior-obsidian check"
@@ -109,6 +117,11 @@ install_taskwarrior_obsidian_config() {
 
 install_taskwarrior_obsidian_hooks() {
   local hook=""
+
+  if taskwarrior_obsidian_hooks_present; then
+    echo "taskwarrior-obsidian hooks already installed in $HOOKS_DIR"
+    return 0
+  fi
 
   fetch_taskwarrior_obsidian_repo || return 1
 
@@ -124,10 +137,14 @@ install_taskwarrior_obsidian_hooks() {
   done
 }
 
-install_taskwarrior_obsidian_binary
-install_taskwarrior_obsidian_config
-install_taskwarrior_obsidian_hooks
-cleanup_taskwarrior_obsidian_repo
+if [[ -x "$BIN" && -f "$CONFIG_FILE" ]] && taskwarrior_obsidian_hooks_present; then
+  echo "taskwarrior-obsidian already fully installed"
+else
+  install_taskwarrior_obsidian_binary
+  install_taskwarrior_obsidian_config
+  install_taskwarrior_obsidian_hooks
+  cleanup_taskwarrior_obsidian_repo
+fi
 
 if [[ -x "$BIN" ]]; then
   "$BIN" check 2>/dev/null && echo "taskwarrior-obsidian check passed" \

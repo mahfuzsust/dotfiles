@@ -11,9 +11,15 @@ install_catppuccin() {
     return 0
   fi
 
+  if NODE_NO_WARNINGS=1 "$cli" --list-extensions 2>/dev/null \
+    | grep -Fi "$CATPPUCCIN_EXT"; then
+    echo "Catppuccin theme already installed for $cli"
+    return 0
+  fi
+
   echo "Installing Catppuccin theme for $cli..."
   # VS Code/Cursor spawn a Node helper that ignores NODE_OPTIONS; NODE_NO_WARNINGS works.
-  if NODE_NO_WARNINGS=1 "$cli" --install-extension "$CATPPUCCIN_EXT" --force; then
+  if NODE_NO_WARNINGS=1 "$cli" --install-extension "$CATPPUCCIN_EXT"; then
     echo "Catppuccin theme installed for $cli"
   else
     echo "Failed to install Catppuccin theme for $cli" >&2

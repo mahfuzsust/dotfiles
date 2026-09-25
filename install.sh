@@ -11,6 +11,7 @@ USER_CONFIG="$DOTFILES_DIR/user-config.yml"
 SSH_KEY="$HOME/.ssh/id_ed25519"
 # shellcheck source=config/load-user-config.zsh
 source "$DOTFILES_DIR/config/load-user-config.zsh"
+ensure_user_config "$USER_CONFIG"
 load_user_config "$USER_CONFIG"
 apply_git_user_from_config
 write_github_env "$CONFIG_DIR/dotfiles/github.env"
@@ -30,6 +31,7 @@ fi
 
 ensure_ssh_key() {
     if [[ -f "$SSH_KEY" ]]; then
+        echo "SSH key already present: $SSH_KEY"
         return 0
     fi
 
@@ -103,29 +105,59 @@ EOF
 ensure_ssh_key
 ensure_ssh_config
 
-echo "Add ssh-add"
-if [[ -e /dev/tty ]]; then
-    ssh-add --apple-use-keychain "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
-        || ssh-add "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
-        || true
+ssh_key_loaded() {
+    ssh-add -l >/dev/null 2>&1 || return 1
+    ssh-add -l 2>/dev/null | grep -qiE 'ed25519|id_ed25519'
+}
+
+if ssh_key_loaded; then
+    echo "SSH key already loaded in agent"
 else
-    ssh-add --apple-use-keychain "$SSH_KEY" 2>/dev/null || ssh-add "$SSH_KEY" 2>/dev/null || true
+    echo "Add ssh-add"
+    if [[ -e /dev/tty ]]; then
+        ssh-add --apple-use-keychain "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
+            || ssh-add "$SSH_KEY" </dev/tty >/dev/tty 2>/dev/null \
+            || true
+    else
+        ssh-add --apple-use-keychain "$SSH_KEY" 2>/dev/null || ssh-add "$SSH_KEY" 2>/dev/null || true
+    fi
 fi
 
 echo "Running Brew update"
 brew update
 
-echo "Running Brew upgrade"
-brew upgrade
+if [[ -n "$(brew outdated 2>/dev/null)" ]]; then
+    echo "Running Brew upgrade"
+    brew upgrade
+else
+    echo "Homebrew packages already up to date"
+fi
 
-echo "Running Brew cleanup"
-brew cleanup
+if brew cleanup -n 2>/dev/null | grep -q 'Would remove'; then
+    echo "Running Brew cleanup"
+    brew cleanup
+else
+    echo "Nothing to brew cleanup"
+fi
 
 # 3. Install packages via Brewfile (no brew update — it fails when global git
 # config rewrites GitHub HTTPS to SSH and the SSH agent has no keys after restart)
-echo "Installing/upgrading Brewfile packages..."
-if ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
+if brew bundle check --file="$DOTFILES_DIR/Brewfile" >/dev/null 2>&1; then
+    echo "Brewfile packages already installed"
+elif ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
     echo "brew bundle had failures; continuing with symlinks and shell setup" >&2
+fi
+
+echo "Setting up Neovim (LazyVim starter)..."
+chmod +x "$DOTFILES_DIR/config/nvim/install.sh"
+if ! "$DOTFILES_DIR/config/nvim/install.sh"; then
+    echo "LazyVim starter install had failures; continuing" >&2
+fi
+
+echo "Installing Fira Code Nerd Font Mono..."
+chmod +x "$DOTFILES_DIR/config/fonts/install-fira-code-nerd-font-mono.sh"
+if ! "$DOTFILES_DIR/config/fonts/install-fira-code-nerd-font-mono.sh"; then
+    echo "Fira Code Nerd Font Mono install had failures; continuing" >&2
 fi
 
 # go-task and taskwarrior both ship a "task" binary. Neither is linked by
@@ -136,10 +168,10 @@ brew unlink task >/dev/null 2>&1 || true
 brew_prefix="$(brew --prefix)"
 go_task_bin="$(brew --prefix go-task)/bin/task"
 taskwarrior_bin="$(brew --prefix task)/bin/task"
-if [[ -x "$go_task_bin" ]]; then
+if [[ -x "$go_task_bin" ]] && [[ ! ( -e "$brew_prefix/bin/task" && "${brew_prefix}/bin/task:A" == "${go_task_bin:A}" ) ]]; then
     ln -sfn "$go_task_bin" "$brew_prefix/bin/task"
 fi
-if [[ -x "$taskwarrior_bin" ]]; then
+if [[ -x "$taskwarrior_bin" ]] && [[ ! ( -e "$brew_prefix/bin/tk" && "${brew_prefix}/bin/tk:A" == "${taskwarrior_bin:A}" ) ]]; then
     ln -sfn "$taskwarrior_bin" "$brew_prefix/bin/tk"
 fi
 
@@ -154,11 +186,33 @@ link_file() {
     local src=$1
     local dest=$2
 
-    # Create destination directory if it doesn't exist
     mkdir -p "$(dirname "$dest")"
 
-    # -s: symbolic, -f: force (overwrite existing), -n: treat dest as normal file if it's a symlink to a dir
+    if [[ -e "$dest" ]] && [[ "${dest:A}" == "${src:A}" ]]; then
+        return 0
+    fi
+
     ln -sfn "$src" "$dest"
+}
+
+git_config_set_if_needed() {
+    local key="$1" expected="$2" current=""
+
+    current="$(git config --global "$key" 2>/dev/null || true)"
+    if [[ "$current" == "$expected" ]]; then
+        return 0
+    fi
+    git config --global "$key" "$expected"
+}
+
+defaults_write_if_needed() {
+    local domain="$1" key="$2" expected="$3" current=""
+
+    current="$(defaults read "$domain" "$key" 2>/dev/null || true)"
+    if [[ "$current" == "$expected" ]]; then
+        return 0
+    fi
+    defaults write "$domain" "$key" "$expected"
 }
 
 echo "Setting up symlinks..."
@@ -170,7 +224,7 @@ link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$CONFIG_DIR/tmux/tmux.conf"
 link_file "$DOTFILES_DIR/config/tmux/status-right.sh" "$CONFIG_DIR/tmux/status-right.sh"
 chmod +x "$CONFIG_DIR/tmux/status-right.sh"
-if command -v tmux &>/dev/null; then
+if command -v tmux &>/dev/null && tmux info &>/dev/null; then
     tmux source-file "$HOME/.tmux.conf" 2>/dev/null || true
     echo "Reloaded tmux config"
 fi
@@ -179,9 +233,14 @@ fi
 
 # 1. For Git (requires git config --global core.excludesfile)
 link_file "$DOTFILES_DIR/ignore" "$HOME/.global_ignore"
-git config --global core.excludesfile "$HOME/.global_ignore"
-git config --global init.defaultBranch main
-git config --global rerere.enabled true
+git_config_set_if_needed core.excludesfile "$HOME/.global_ignore"
+git_config_set_if_needed init.defaultBranch main
+git_config_set_if_needed rerere.enabled true
+
+if command -v nvim >/dev/null 2>&1; then
+    git_config_set_if_needed sequence.editor "nvim"
+    git_config_set_if_needed core.editor "nvim"
+fi
 
 if command -v gh &>/dev/null; then
     if gh extension list 2>/dev/null | grep -q 'gh-stack'; then
@@ -222,32 +281,43 @@ link_file "$DOTFILES_DIR/config/iterm2/tmux-start.zsh" "$CONFIG_DIR/iterm2/tmux-
 chmod +x "$CONFIG_DIR/iterm2/tmux-start.zsh"
 chmod +x "$DOTFILES_DIR/config/iterm2/build-profile.py"
 
-echo "Downloading Catppuccin Mocha iTerm2 theme..."
-curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
+if [[ -f "$ITERM_THEME" ]]; then
+    echo "iTerm2 theme already present: $ITERM_THEME"
+else
+    echo "Downloading Catppuccin Mocha iTerm2 theme..."
+    curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
+fi
 
-# Remove stale symlink from older installs (profile is generated here, not in dotfiles)
-rm -f "$ITERM_PROFILE_OUT"
+if [[ -L "$ITERM_PROFILE_OUT" ]]; then
+    rm -f "$ITERM_PROFILE_OUT"
+fi
 
-python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
-    "$ITERM_PROFILE_BASE" \
-    "$ITERM_THEME" \
-    "$ITERM_PROFILE_OUT"
-echo "Built iTerm2 profile from Catppuccin Mocha theme"
+if [[ -f "$ITERM_PROFILE_OUT" ]] \
+    && [[ "$ITERM_PROFILE_OUT" -nt "$ITERM_PROFILE_BASE" ]] \
+    && [[ "$ITERM_PROFILE_OUT" -nt "$ITERM_THEME" ]]; then
+    echo "iTerm2 profile already built: $ITERM_PROFILE_OUT"
+else
+    python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
+        "$ITERM_PROFILE_BASE" \
+        "$ITERM_THEME" \
+        "$ITERM_PROFILE_OUT"
+    echo "Built iTerm2 profile from Catppuccin Mocha theme"
+fi
 
 rm -f "$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch/set-default-profile.py" 2>/dev/null || true
 
 # Disable the "Quit iTerm2?" prompt
-defaults write com.googlecode.iterm2 PromptOnQuit -bool false
+defaults_write_if_needed com.googlecode.iterm2 PromptOnQuit 0
 
 # Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
-defaults write com.googlecode.iterm2 TabStyleWithAutomaticOption -int 1
+defaults_write_if_needed com.googlecode.iterm2 TabStyleWithAutomaticOption 1
 
-# --- macOS Terminal.app (Chalice Dark) ---
+# --- macOS Terminal.app (catppuccin-mocha) ---
 
 echo "Configuring Terminal.app..."
 chmod +x "$DOTFILES_DIR/config/terminal/install.sh"
 if ! "$DOTFILES_DIR/config/terminal/install.sh"; then
-    echo "Terminal.app profile import had failures; see config/manual.md" >&2
+    echo "Terminal.app profile import had failures; see manual.md" >&2
 fi
 
 # --- VS Code / Cursor (shared settings) ---
@@ -261,6 +331,11 @@ link_file "$DOTFILES_DIR/config/editor/settings.json" "$CURSOR_USER_DIR/settings
 
 chmod +x "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
 "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
+
+chmod +x "$DOTFILES_DIR/config/idea/install-keymap.sh"
+if ! "$DOTFILES_DIR/config/idea/install-keymap.sh"; then
+    echo "IntelliJ keymap install had failures; continuing" >&2
+fi
 
 # 1. Link shell config into ~/.config/shell
 mkdir -p "$CONFIG_DIR/shell"
@@ -278,7 +353,7 @@ chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$
 
 git config --global --unset include.path 2>/dev/null || true
 
-# GPG commit signing (creates key if needed, exports public key)
+# GPG commit signing (setup-gpg skips when signing key is already configured)
 echo "Setting up GPG commit signing..."
 "$DOTFILES_DIR/config/git/setup-gpg"
 
@@ -850,9 +925,15 @@ ensure_zsh_autosuggestions_plugin "$SHELL_RC"
 # "Ignore insecure directories" prompt on every new shell.
 if command -v brew &>/dev/null; then
     BREW_SHARE="$(brew --prefix)/share"
-    if [ -d "$BREW_SHARE" ]; then
+    if [[ -d "$BREW_SHARE" ]]; then
+        brew_share_mode_before="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
         chmod go-w "$BREW_SHARE"
-        echo "Fixed zsh completion permissions on $BREW_SHARE"
+        brew_share_mode_after="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
+        if [[ "$brew_share_mode_before" != "$brew_share_mode_after" ]]; then
+            echo "Fixed zsh completion permissions on $BREW_SHARE"
+        else
+            echo "zsh completion permissions already OK on $BREW_SHARE"
+        fi
     fi
 fi
 
@@ -929,7 +1010,6 @@ reload_shell_config() {
 }
 
 echo "Installation complete!"
-echo "Manual steps (SSH, gh auth, app logins): see $DOTFILES_DIR/config/manual.md"
 
 if [[ -n "${DOTFILES_INSTALL_FROM_DOTINSTALL:-}" ]]; then
     :

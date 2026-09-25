@@ -1,4 +1,4 @@
-# Copy to user-config.yml and edit before first ./install.sh
+# Optional: copy to user-config.yml and edit. If missing, ./install.sh prompts and creates user-config.yml.
 user:
   name: Your Name
   email: your_email@example.com

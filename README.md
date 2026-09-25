@@ -33,24 +33,38 @@ Open a **new terminal tab** when it finishes (or run `source ~/.zshrc`).
 - [Zsh](https://www.zsh.org/) as your default shell (macOS default)
 - A `~/.zshrc` file — [Oh My Zsh](https://ohmyz.sh/) is supported; the installer patches it automatically
 
-One-time manual steps (SSH key, `gh auth`, app logins, and similar) are listed in [`config/manual.md`](config/manual.md).
-
 ---
 
-## What `install.sh` does
+### Manual steps
 
-The installer is idempotent — safe to run multiple times.
+**Add the public key to GitHub** (once per machine):
 
-| Step | Action |
-|------|--------|
-| Homebrew | Installs Homebrew if missing |
-| Packages | Runs `brew update`, `brew upgrade`, then `brew bundle` from the `Brewfile` |
-| Symlinks | Links config files into `~/.config` and other standard paths |
-| Git | Sets global Git config (default branch, global ignore) |
-| iTerm2 | Builds profile from Catppuccin Mocha theme |
-| Terminal.app | Imports Chalice Dark as default profile |
-| Zsh | Fixes compinit warnings, wires plugins, sources aliases and fzf |
-| Reload | Sources `~/.zshrc` at the end |
+```bash
+pbcopy < ~/.ssh/id_ed25519.pub
+```
+
+Open [GitHub → SSH and GPG keys → New SSH key](https://github.com/settings/ssh/new), paste, and save.
+
+### GitHub CLI
+
+```bash
+gh auth login
+```
+
+### GPG public key on GitHub
+
+If commit signing was configured, add the printed key to GitHub → **Settings → SSH and GPG keys**, or:
+
+```bash
+gpg --armor --export "$(git config user.signingkey)" | pbcopy
+```
+
+### App logins (casks from Brewfile)
+
+Sign in or grant permissions as needed, for example:
+
+- Bitwarden, Notion, Cursor, VS Code, IntelliJ
+- **gcloud** / **AWS** CLI: run `gcloud auth login` / `aws configure` when you use them
 
 ---
 
@@ -98,10 +112,13 @@ The installer also sets:
 ```bash
 git config --global core.excludesfile ~/.global_ignore
 git config --global init.defaultBranch main
+git config --global sequence.editor nvim   # interactive rebase todo list
+git config --global core.editor nvim       # commit messages (incl. during rebase)
 ```
 
 - **`core.excludesfile`** — global gitignore via the shared `ignore` file
 - **`init.defaultBranch main`** — new repos default to `main`
+- **`sequence.editor` / `core.editor`** — Neovim for `git rebase -i` and other Git editing (when `nvim` is installed)
 
 ### GPG commit signing
 
@@ -154,14 +171,16 @@ Interactive PR creation via the [GitHub CLI](https://cli.github.com/) (`gh`). Re
 
 Flow for both:
 
-1. Enter PR **title** (pre-filled if the branch has exactly one commit ahead of the base)
-2. Edit **description** in `nvim` (or `$EDITOR`) using a template:
+1. Pick **base** branch (`gprm` uses repo default)
+2. **`git rebase -i --autostash origin/<base>`** — edit/squash/reword only this branch’s commits (uses `sequence.editor`, usually `nvim`)
+3. Enter PR **title** (pre-filled if exactly one commit ahead of base after rebase)
+4. Edit **description** in `nvim` (or `$EDITOR`) using a template:
    - `### Implementation`
    - `### Why`
-3. Choose **ready** or **draft**
-4. Push current branch if needed (`-u origin` on first push)
-5. Create PR assigned to **you** (`@me`)
-6. Print a **clickable URL** (OSC 8 hyperlink) and copy it to the clipboard
+5. Choose **ready** or **draft**
+6. Push (including `--force-with-lease` if rebase rewrote history)
+7. Create PR assigned to **you** (`@me`)
+8. Print a **clickable URL** (OSC 8 hyperlink) and copy it to the clipboard
 
 ```bash
 gprm    # PR into main/master
@@ -174,13 +193,19 @@ Custom editor for the description:
 export GIT_PR_EDITOR=vim
 ```
 
+### IntelliJ IDEA keymap (`config/idea/`)
+
+On `dotinstall`, **`config/idea/install-keymap.sh`** sets **⌘T** to **Show Pull Request in Tool Window** (`Github.Pull.Request.Show.In.Toolwindow`) on your active custom keymap, or installs the **Dotfiles** keymap (parent: macOS defaults).
+
+Open IntelliJ at least once before the first install so the config directory exists.
+
 ### `greview` — review a pull request in IntelliJ IDEA
 
 ```bash
 greview https://github.com/owner/repo/pull/123
 ```
 
-Clones into `~/projects/<repo>` if needed (SSH), checks out the PR in a separate worktree under `~/projects/.preview/`, opens IntelliJ IDEA, and shows a diff against the PR base branch.
+Clones into `~/projects/<repo>` if needed (SSH), `git fetch origin`, runs `gh pr checkout <url>` in that directory, then opens **IntelliJ IDEA** on the project in the background (no separate worktree or IDE diff view).
 
 ### `gclean` — branch cleanup
 
@@ -200,33 +225,41 @@ What it does:
 
 ## Shell setup
 
-### Aliases (`config/shell/aliases`)
+### Shell modules (`config/shell/`)
 
-Loaded automatically by `install.sh` via a `DOTFILES ALIASES` block appended to `~/.zshrc` (after Oh My Zsh). The installer runs `unalias gpr` first because the OMZ git plugin defines `gpr` as `git pull --rebase`.
+`aliases` is sourced from `~/.zshrc` (after Oh My Zsh; the installer runs `unalias gpr` / `gprm` first). It only loads `load`, which auto-sources every other file in `~/.config/shell/` (`editor`, `git`, `search`, …). Add a module by creating `config/shell/<name>` and re-running `dotinstall`.
+
+| File | Contents |
+|------|----------|
+| `editor` | `vi` / `vim` → `nvim` |
+| `git` | Git aliases and helpers (`gs`, `gco`, `gn`, `gac`, `gpr`, `grb`, …) |
+| `github` | `GITHUB_USERNAME` from install (`~/.config/dotfiles/github.env`) |
+| `dotinstall` | `dotinstall` → `~/dotfiles/install.sh` |
+| `search` / `open-project` / … | other helpers |
+
+**Git module (`config/shell/git`)** — highlights:
 
 | Alias / function | Maps to |
 |------------------|---------|
-| `vi`, `vim` | `nvim` |
 | `gs` | `git status -sb` |
 | `gco` | `git checkout` |
 | `gcob <name>` | `git checkout -b <name>` |
 | `grr` | discard all local changes (`git reset --hard` + `git clean -fd`) |
 | `gn <name>` | create branch with changeset from `main`/`master` |
 | `gbd` | `git branch -d` |
-| `gp` | `git pull` |
-| `gpp` | `git push` (uses `-u origin <branch>` when no upstream is set) |
-| `gac` | `~/.config/git/gac` |
-| `gpr` | interactive PR via `gh` (choose base branch) |
-| `gprm` | PR via `gh` into repo default branch |
-| `greview` | review a GitHub PR in IntelliJ IDEA |
-| `gclean` | prune merged gone branches; list/delete untracked local branches |
-| `dotinstall` | run `~/dotfiles/install.sh` |
-| `search <pattern> [path]` | search with ripgrep; `*text` = ends with, `text*` = starts with |
-| `searche [editor] <pattern> [path]` | pick a match with fzf, open in nvim/cursor at the line |
+| `gp` | pull with rebase + autostash |
+| `gpp` | `git push` |
+| `gppr` | rebase onto `origin/main` (or master) with `--autostash`, then push (`-u origin` if new; `--force-with-lease` if diverged) |
+| `grbm` | `git rebase origin/main --autostash` only (no push) |
+| `gac`, `gpr`, `gprm`, `greview`, `gclean` | `~/.config/git/*` scripts |
+| `gm`, `gcl`, `gl`, `gt`, `gtp`, `gcp`, `grb` | merge, clone, log, tags, cherry-pick, interactive rebase |
 
-### Shell modules (`config/shell/`)
+**`search`**
 
-`aliases` is sourced from `~/.zshrc`. It loads `load`, which auto-sources every other file in `~/.config/shell/` (e.g. `search`). Add a new module by creating `config/shell/<name>` and re-running `dotinstall`.
+| Command | Purpose |
+|---------|---------|
+| `search <pattern> [path]` | ripgrep; `*text` = ends with, `text*` = starts with |
+| `searche [editor] <pattern> [path]` | fzf pick, open in nvim/cursor at the line |
 
 **`search` patterns**
 
@@ -319,7 +352,7 @@ Restart iTerm2 after install to pick up profile and theme changes.
 
 ## Terminal.app
 
-- Profile **`config/terminal/Chalice Dark.terminal`** (your exported Terminal settings) imported on every `dotinstall`
+- Profile **`config/terminal/catppuccin-mocha.terminal`** (your exported Terminal settings) imported on every `dotinstall`
 - Set as **Default Window Settings** and **Startup Window Settings**
 - Open a **new** Terminal window after install; if import fails, open Terminal once and re-run `config/terminal/install.sh`
 
@@ -356,12 +389,3 @@ git config --global --unset include.path 2>/dev/null || true
 # Fix zsh compinit prompt
 chmod go-w "$(brew --prefix)/share"
 ```
-
----
-
-## Customisation
-
-1. Edit files under `config/` or `Brewfile`
-2. Run `./install.sh` to re-link and re-apply
-3. Open a new terminal or `source ~/.zshrc`
-

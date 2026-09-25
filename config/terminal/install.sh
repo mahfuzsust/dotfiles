@@ -2,7 +2,7 @@
 set -e
 
 DOTFILES_DIR="${0:A:h:h:h}"
-TERMINAL_THEME="$DOTFILES_DIR/config/terminal/Chalice Dark.terminal"
+TERMINAL_THEME="$DOTFILES_DIR/config/terminal/catppuccin-mocha.terminal"
 TERMINAL_PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
 
 if [[ ! -f "$TERMINAL_THEME" ]]; then
@@ -19,6 +19,15 @@ fi
 if [[ ! -f "$TERMINAL_PLIST" ]]; then
     echo "terminal: open Terminal.app once, then re-run dotinstall" >&2
     exit 1
+fi
+
+terminal_startup_default="$(/usr/bin/defaults read com.apple.Terminal "Startup Window Settings" 2>/dev/null || true)"
+terminal_default="$(/usr/bin/defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || true)"
+if [[ "$terminal_startup_default" == "$TERMINAL_PROFILE_NAME" ]] \
+    && [[ "$terminal_default" == "$TERMINAL_PROFILE_NAME" ]] \
+    && /usr/libexec/PlistBuddy -c "Print :'Window Settings':'${TERMINAL_PROFILE_NAME}':name" "$TERMINAL_PLIST" >/dev/null 2>&1; then
+    echo "Terminal.app profile already configured: $TERMINAL_PROFILE_NAME"
+    exit 0
 fi
 
 /usr/libexec/PlistBuddy -c "Delete :'Window Settings':'${TERMINAL_PROFILE_NAME}'" "$TERMINAL_PLIST" 2>/dev/null || true

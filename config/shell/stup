@@ -1,13 +1,13 @@
 # work standup: yesterday/today tasks (+ Friday when run on Monday).
 
 _stup_filter() {
-  local date_filter="(start:yesterday or end:yesterday or end:today)"
+  local date_filter="(start:yesterday or end:yesterday or end:today) and +work"
 
   if [[ "$(date +%u)" == "1" ]]; then
     date_filter="(start:friday or end:friday or start:yesterday or end:yesterday or end:today)"
   fi
 
-  print -r -- "$date_filter and +work"
+  print -r -- "$date_filter"
 }
 
 _stup_task() {
