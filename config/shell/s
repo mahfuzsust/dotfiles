@@ -1,16 +1,16 @@
 # Search text in a directory with ripgrep.
 # Quote patterns that start with * so the shell does not expand them.
 #
-# Usage: search <pattern> [path]
-#   search abc         search for abc (ripgrep regex; smart-case from ripgreprc)
-#   search '*abc'      lines ending with abc
-#   search 'abc*'      lines starting with abc
-#   search '*abc*'     lines containing abc (same as abc for plain text)
-#   search abc ./src   search under ./src
+# Usage: s <pattern> [path]
+#   s abc         search for abc (ripgrep regex; smart-case from ripgreprc)
+#   s '*abc'      lines ending with abc
+#   s 'abc*'      lines starting with abc
+#   s '*abc*'     lines containing abc (same as abc for plain text)
+#   s abc ./src   search under ./src
 
 _search_usage() {
   cat >&2 <<'EOF'
-usage: search <pattern> [path]
+usage: s <pattern> [path]
 
 Wildcards (quote patterns that contain *):
   abc       ripgrep search for abc
@@ -19,9 +19,9 @@ Wildcards (quote patterns that contain *):
   *abc*     lines containing abc
 
 Examples:
-  search timeout
-  search '*Error' ./src
-  search 'func.*Handler' .
+  s timeout
+  s '*Error' ./src
+  s 'func.*Handler' .
 EOF
 }
 
@@ -50,12 +50,12 @@ _search_pattern() {
   local escaped=""
 
   if [[ -z "$pattern" ]]; then
-    echo "search: pattern is required" >&2
+    echo "s: pattern is required" >&2
     return 1
   fi
 
   if [[ "$pattern" == '*' ]]; then
-    echo "search: pattern cannot be just '*'" >&2
+    echo "s: pattern cannot be just '*'" >&2
     return 1
   fi
 
@@ -70,7 +70,7 @@ _search_pattern() {
   fi
 
   if [[ -z "$core" ]]; then
-    echo "search: empty search term" >&2
+    echo "s: empty search term" >&2
     return 1
   fi
 
@@ -106,7 +106,7 @@ _search_run_rg() {
   fi
 }
 
-search() {
+s() {
   local pattern="${1:-}" target="${2:-.}"
 
   if [[ -z "$pattern" ]]; then
@@ -115,7 +115,7 @@ search() {
   fi
 
   if [[ ! -e "$target" ]]; then
-    echo "search: path not found: $target" >&2
+    echo "s: path not found: $target" >&2
     return 1
   fi
 
@@ -125,19 +125,19 @@ search() {
 
 _searche_usage() {
   cat >&2 <<'EOF'
-usage: searche [editor] <pattern> [path]
+usage: se [editor] <pattern> [path]
 
 Pick a ripgrep match with fzf and open it in an editor (at the matched line).
 
 Editors (optional, default: nvim):
   vi, vim, nvim, cursor, code
 
-Wildcards match the search command (*text, text*, *text*).
+Wildcards match s (*text, text*, *text*).
 
 Examples:
-  searche timeout
-  searche (vi, nvim<default>, cursor, code) timeout ./src
-  searche cursor '*Error'
+  se timeout
+  se (vi, nvim<default>, cursor, code) timeout ./src
+  se cursor '*Error'
 EOF
 }
 
@@ -147,7 +147,7 @@ _searche_resolve_editor() {
     cursor) printf '%s' cursor ;;
     code) printf '%s' code ;;
     *)
-      echo "searche: unknown editor: $1 (try vi, nvim, cursor, or code)" >&2
+      echo "se: unknown editor: $1 (try vi, nvim, cursor, or code)" >&2
       return 1
       ;;
   esac
@@ -166,7 +166,7 @@ _searche_open() {
       if command -v cursor >/dev/null 2>&1; then
         cursor -g "$file:$line" 2>/dev/null || cursor "$file:$line"
       else
-        echo "searche: cursor not found" >&2
+        echo "se: cursor not found" >&2
         return 1
       fi
       ;;
@@ -174,7 +174,7 @@ _searche_open() {
       if command -v code >/dev/null 2>&1; then
         code -g "$file:$line"
       else
-        echo "searche: code not found (install VS Code shell command)" >&2
+        echo "se: code not found (install VS Code shell command)" >&2
         return 1
       fi
       ;;
@@ -187,7 +187,7 @@ _searche_open() {
   esac
 }
 
-searche() {
+se() {
   local editor="nvim" pattern="" target="."
   local -a known_editors=(vi vim nvim cursor code)
   local selected=""
@@ -212,12 +212,12 @@ searche() {
   target="${1:-.}"
 
   if [[ ! -e "$target" ]]; then
-    echo "searche: path not found: $target" >&2
+    echo "se: path not found: $target" >&2
     return 1
   fi
 
   command -v fzf >/dev/null 2>&1 || {
-    echo "searche: fzf not found" >&2
+    echo "se: fzf not found" >&2
     return 1
   }
 

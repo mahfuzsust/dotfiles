@@ -246,7 +246,7 @@ What it does:
 
 ### Shell modules (`config/shell/`)
 
-`aliases` is sourced from `~/.zshrc` (after Oh My Zsh; the installer runs `unalias gpr` / `gprm` first). It only loads `load`, which auto-sources every other file in `~/.config/shell/` (`editor`, `git`, `search`, …). Add a module by creating `config/shell/<name>` and re-running `dotinstall`.
+`aliases` is sourced from `~/.zshrc` (after Oh My Zsh; the installer runs `unalias gpr` / `gprm` first). It only loads `load`, which auto-sources every other file in `~/.config/shell/` (`editor`, `git`, `s`, …). Add a module by creating `config/shell/<name>` and re-running `dotinstall`.
 
 | File | Contents |
 |------|----------|
@@ -254,7 +254,7 @@ What it does:
 | `git` | Git aliases and helpers (`gs`, `gco`, `gn`, `gac`, `gpr`, `grb`, …) |
 | `github` | `GITHUB_USERNAME` from install (`~/.config/dotfiles/github.env`) |
 | `dotinstall` | `dotinstall` → `~/dotfiles/install.sh` |
-| `search` / `open-project` / … | other helpers |
+| `s` / `open-project` / … | other helpers |
 
 **Git module (`config/shell/git`)** — highlights:
 
@@ -273,14 +273,14 @@ What it does:
 | `gac`, `gpr`, `gprm`, `greview`, `gclean` | `~/.config/git/*` scripts |
 | `gm`, `gcl`, `gl`, `gt`, `gtp`, `gcp`, `grb` | merge, clone, log, tags, cherry-pick, interactive rebase |
 
-**`search`**
+**`s` / `se`**
 
 | Command | Purpose |
 |---------|---------|
-| `search <pattern> [path]` | ripgrep; `*text` = ends with, `text*` = starts with |
-| `searche [editor] <pattern> [path]` | fzf pick, open in nvim/cursor at the line |
+| `s <pattern> [path]` | ripgrep; `*text` = ends with, `text*` = starts with |
+| `se [editor] <pattern> [path]` | fzf pick, open in nvim/cursor at the line |
 
-**`search` patterns**
+**`s` patterns**
 
 | Pattern | Meaning |
 |---------|---------|
@@ -289,18 +289,18 @@ What it does:
 | `abc*` | lines **starting** with `abc` |
 | `*abc*` | lines **containing** `abc` |
 
-Quote patterns with `*` so the shell does not expand them: `search '*Error' ./src`
+Quote patterns with `*` so the shell does not expand them: `s '*Error' ./src`
 
-**`searche`**
+**`se`**
 
 | Command | Opens in |
 |---------|----------|
-| `searche timeout` | nvim (default) |
-| `searche vi timeout` | nvim (`vi`/`vim`/`nvim` are equivalent) |
-| `searche cursor '*Error' ./src` | Cursor |
-| `searche code timeout` | VS Code |
+| `se timeout` | nvim (default) |
+| `se vi timeout` | nvim (`vi`/`vim`/`nvim` are equivalent) |
+| `se cursor '*Error' ./src` | Cursor |
+| `se code timeout` | VS Code |
 
-Optional editor comes first, then the same patterns as `search`. fzf shows `file:line:content`; Enter opens at that line.
+Optional editor comes first, then the same patterns as `s`. fzf shows `file:line:content`; Enter opens at that line.
 
 ### Zsh plugins (via `install.sh`)
 
