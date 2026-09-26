@@ -328,6 +328,8 @@ CURSOR_USER_DIR="$HOME/Library/Application Support/Cursor/User"
 mkdir -p "$VSCODE_USER_DIR" "$CURSOR_USER_DIR"
 link_file "$DOTFILES_DIR/config/editor/settings.json" "$VSCODE_USER_DIR/settings.json"
 link_file "$DOTFILES_DIR/config/editor/settings.json" "$CURSOR_USER_DIR/settings.json"
+link_file "$DOTFILES_DIR/config/editor/keybindings.json" "$VSCODE_USER_DIR/keybindings.json"
+link_file "$DOTFILES_DIR/config/editor/keybindings.json" "$CURSOR_USER_DIR/keybindings.json"
 
 chmod +x "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
 "$DOTFILES_DIR/config/editor/install-catppuccin.sh"

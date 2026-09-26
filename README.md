@@ -195,9 +195,28 @@ export GIT_PR_EDITOR=vim
 
 ### IntelliJ IDEA keymap (`config/idea/`)
 
-On `dotinstall`, **`config/idea/install-keymap.sh`** sets **⌘T** to **Show Pull Request in Tool Window** (`Github.Pull.Request.Show.In.Toolwindow`) on your active custom keymap, or installs the **Dotfiles** keymap (parent: macOS defaults).
+On `dotinstall`, **`config/idea/install-keymap.sh`** merges VS Code/Cursor-style shortcuts from **`config/idea/keymaps/Dotfiles.xml`** into your active custom keymap (or activates **Dotfiles**):
+
+| Shortcut | Action |
+|----------|--------|
+| **⌘T** | Show Pull Request in Tool Window |
+| **⌘P** | Go to File |
+| **⌘B** | Go to Declaration |
+| **⌘⌥B** | Go to Implementation(s) |
+| **⌘[** | Back |
+| **⌘]** | Forward |
+| **⌘D** | Add selection for next occurrence (multi-cursor) |
+| **⌘⇧D** | Duplicate line or selection |
+| **⌘⇧B** | Find usages |
+| **⌘⌥K** | Toggle bookmark |
+| **⌘⌥]** | Next bookmark |
+| **⌘⌥[** | Previous bookmark |
+
+Dotfiles unbinds **Move Caret to Code Block Start/End** on **⌘⌥[** / **⌘⌥]** so bookmarks can use those keys.
 
 Open IntelliJ at least once before the first install so the config directory exists.
+
+**VS Code / Cursor** share **`config/editor/keybindings.json`** (symlinked on `dotinstall`) for the same navigation and usage shortcuts as above. Bookmarks use the **[Bookmarks](https://marketplace.visualstudio.com/items?itemName=alefragnani.Bookmarks)** extension (`install-catppuccin.sh` installs it for `code` and `cursor`). Conflicting defaults (sidebar **⌘B**, build **⌘⇧B**, indent/outdent on **⌘[** / **⌘]**) are unbound where needed.
 
 ### `greview` — review a pull request in IntelliJ IDEA
 
