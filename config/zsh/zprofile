@@ -1,0 +1,8 @@
+# Login-shell environment (sourced from ~/.zprofile via install.sh).
+# PATH and tools that must exist before interactive ~/.zshrc.
+
+if type brew &>/dev/null; then
+  eval "$(brew shellenv zsh)"
+fi
+
+export PATH="$HOME/.local/bin:$PATH"

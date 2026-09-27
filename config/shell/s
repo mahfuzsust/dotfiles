@@ -232,3 +232,46 @@ se() {
 
   _searche_open "$editor" "$selected"
 }
+
+# Live ripgrep in fzf (same patterns as s). Zsh: Ctrl+F.
+_fzf_rg_fzf_source() {
+  local query="$1"
+
+  [[ -n "$query" ]] || return 0
+  _search_pattern "$query" || return 0
+  _search_run_rg "." --line-number --no-heading --color=always 2>/dev/null
+}
+
+_fzf_rg_content_widget() {
+  local selected="" s_module="${DOTFILES_SHELL:-$HOME/.config/shell}/s"
+
+  if ! command -v fzf >/dev/null 2>&1; then
+    zle -M "fzf not found"
+    return 1
+  fi
+  if ! command -v rg >/dev/null 2>&1; then
+    zle -M "rg not found"
+    return 1
+  fi
+
+  selected="$(
+    : | fzf --phony \
+      --ansi \
+      --delimiter : \
+      --nth 3.. \
+      --prompt='Rg> ' \
+      --bind "start:reload:zsh -fc 'source ${(q)s_module}; _fzf_rg_fzf_source \"{q}\"'" \
+      --bind "change:reload:zsh -fc 'source ${(q)s_module}; _fzf_rg_fzf_source \"{q}\"'" \
+      --preview 'bat --color=always --style=numbers --line-range {2}:+60 {1}' \
+      --preview-window 'right:65%:wrap:border-left'
+  )" || return 0
+
+  [[ -n "$selected" ]] || return 0
+  _searche_open nvim "$selected"
+  zle reset-prompt
+}
+
+if [[ -n "$ZSH_VERSION" ]]; then
+  zle -N _fzf_rg_content_widget
+  bindkey '^F' _fzf_rg_content_widget
+fi

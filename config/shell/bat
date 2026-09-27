@@ -1,0 +1,13 @@
+# bat-extras (Homebrew: bat-extras) — https://github.com/eth-p/bat-extras
+#   prettybat — format + bat highlight
+#   batgrep   — ripgrep search with bat output
+#   batdiff   — git/worktree diffs with bat (optional delta)
+#   batman    — man pages via bat (+ fzf search when fzf is installed)
+
+if command -v delta >/dev/null 2>&1; then
+  export BATDIFF_USE_DELTA=true
+fi
+
+if command -v batman >/dev/null 2>&1; then
+  eval "$(batman --export-env 2>/dev/null)" || true
+fi

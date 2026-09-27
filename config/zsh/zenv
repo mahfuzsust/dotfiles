@@ -1,0 +1,9 @@
+# Universal zsh environment (sourced from ~/.zshenv for all zsh invocations).
+# Keep this file minimal — no slow init, no interactive-only bindings.
+
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/ripgreprc"
+
+# delta uses less internally; -R keeps colors, -F quit if one screen
+if [[ -z "${DELTA_PAGER:-}" ]] && command -v less >/dev/null 2>&1; then
+  export DELTA_PAGER="less -RFX"
+fi

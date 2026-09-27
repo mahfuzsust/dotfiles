@@ -1,0 +1,46 @@
+#!/usr/bin/env zsh
+# Git pager for delta (main integration) — https://github.com/dandavison/delta#get-started
+# Ad-hoc two-file diff: delta file_A file_B
+set -e
+
+git_config_set_if_needed() {
+  local key="$1" expected="$2" current=""
+
+  current="$(git config --global "$key" 2>/dev/null || true)"
+  if [[ "$current" == "$expected" ]]; then
+    return 0
+  fi
+  git config --global "$key" "$expected"
+}
+
+if ! command -v delta >/dev/null 2>&1; then
+  echo "setup-delta: delta not installed; run brew install git-delta" >&2
+  exit 0
+fi
+
+DELTA_BIN="${DELTA_BIN:-$(command -v delta)}"
+
+git_config_set_if_needed core.pager "$DELTA_BIN"
+git_config_set_if_needed interactive.diffFilter "$DELTA_BIN --color-only"
+git_config_set_if_needed delta.navigate true
+git_config_set_if_needed delta.dark true
+git_config_set_if_needed merge.conflictStyle zdiff3
+
+# Smoke test: two-file diff and git diff → delta pipeline
+_tmp_a="$(mktemp)"
+_tmp_b="$(mktemp)"
+trap 'rm -f "$_tmp_a" "$_tmp_b"' EXIT
+print -r -- 'before' >"$_tmp_a"
+print -r -- 'after' >"$_tmp_b"
+if ! "$DELTA_BIN" "$_tmp_a" "$_tmp_b" --paging=never 2>/dev/null | grep -q 'before'; then
+  echo "setup-delta: delta smoke test failed" >&2
+  exit 1
+fi
+
+if ! git --no-pager diff --no-index "$_tmp_a" "$_tmp_b" 2>/dev/null \
+  | "$DELTA_BIN" --paging=never 2>/dev/null | grep -q 'before'; then
+  echo "setup-delta: delta + git diff smoke test failed" >&2
+  exit 1
+fi
+
+echo "Git configured to use delta at $DELTA_BIN (core.pager, interactive diffFilter, merge zdiff3)"

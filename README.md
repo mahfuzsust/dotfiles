@@ -77,6 +77,7 @@ Sign in or grant permissions as needed, for example:
 | `git`, `gh`, `gh-stack` | Version control and GitHub CLI |
 | `neovim` | Default editor |
 | `fzf`, `fd`, `ripgrep` | Fuzzy finding and fast search |
+| `bat`, `bat-extras`, `git-delta` | Pager, [bat-extras](https://github.com/eth-p/bat-extras), [delta](https://github.com/dandavison/delta) for git diffs |
 | `jq` | JSON processing |
 | `go`, `python`, `protobuf` | Languages and tooling |
 | `asdf`, `nvm` | Runtime version managers |
@@ -90,7 +91,7 @@ Sign in or grant permissions as needed, for example:
 
 - `zsh-completions`
 - `zsh-autosuggestions`
-- `zsh-syntax-highlighting`
+- `fast-syntax-highlighting` (Oh My Zsh custom plugin; cloned by `install.sh`)
 
 ### GUI apps (casks)
 
@@ -119,6 +120,30 @@ git config --global core.editor nvim       # commit messages (incl. during rebas
 - **`core.excludesfile`** — global gitignore via the shared `ignore` file
 - **`init.defaultBranch main`** — new repos default to `main`
 - **`sequence.editor` / `core.editor`** — Neovim for `git rebase -i` and other Git editing (when `nvim` is installed)
+
+### delta ([syntax-highlighting pager](https://github.com/dandavison/delta))
+
+**Primary use:** configure `delta` as Git’s pager ([get started](https://github.com/dandavison/delta#get-started)). After `dotinstall`, `git diff`, `git show`, `git log -p`, and similar commands render through delta automatically.
+
+**Two files (no git):**
+
+```bash
+delta file_A file_B
+```
+
+**Git-related extras:** `batdiff` uses delta when `BATDIFF_USE_DELTA=true` (`config/shell/bat`).
+
+When `delta` is installed (`brew install git-delta`), `config/git/setup-delta` applies:
+
+```bash
+git config --global core.pager delta
+git config --global interactive.diffFilter 'delta --color-only'
+git config --global delta.navigate true
+git config --global delta.dark true
+git config --global merge.conflictStyle zdiff3
+```
+
+Re-run alone: `~/.config/git/setup-delta` (only changes values that differ)
 
 ### GPG commit signing
 
@@ -251,6 +276,8 @@ What it does:
 | File | Contents |
 |------|----------|
 | `editor` | `vi` / `vim` → `nvim` |
+| `ls` | `ls` / `ll` / `la` / `tree` → `eza`; `cat` → `bat` |
+| `bat` | `batman --export-env` for highlighted `man` (see bat-extras below) |
 | `git` | Git aliases and helpers (`gs`, `gco`, `gn`, `gac`, `gpr`, `grb`, …) |
 | `github` | `GITHUB_USERNAME` from install (`~/.config/dotfiles/github.env`) |
 | `dotinstall` | `dotinstall` → `~/dotfiles/install.sh` |
@@ -302,6 +329,20 @@ Quote patterns with `*` so the shell does not expand them: `s '*Error' ./src`
 
 Optional editor comes first, then the same patterns as `s`. fzf shows `file:line:content`; Enter opens at that line.
 
+In any zsh directory, **Ctrl+F** opens the same ripgrep search live in fzf (no initial pattern); Enter opens **nvim** at the match.
+
+### Zsh startup (`config/zsh/`)
+
+| File | Loaded from | Purpose |
+|------|-------------|---------|
+| `zenv` | `~/.zshenv` (dotfiles block) | Universal env for every zsh (e.g. `RIPGREP_CONFIG_PATH`) |
+| `zprofile` | `~/.zprofile` (dotfiles block) | Login shell: `brew shellenv`, `~/.local/bin` on `PATH` |
+| `zoxide.env` | `~/.zshrc` DOTFILES SETUP | `eval "$(zoxide init zsh)"` when `zoxide` is installed |
+
+`install.sh` prepends managed blocks to `~/.zshenv` and `~/.zprofile` without replacing Docker, `sc-tools`, or other existing lines. Duplicate standalone `brew shellenv` lines in `~/.zprofile` are removed once the dotfiles block is present.
+
+Interactive tooling (`fzf.env`, `zoxide.env`, Oh My Zsh, aliases) stays in `~/.zshrc`.
+
 ### Zsh plugins (via `install.sh`)
 
 Wired into `~/.zshrc`:
@@ -309,7 +350,7 @@ Wired into `~/.zshrc`:
 - Homebrew `zsh-completions` on `FPATH`
 - `ZSH_DISABLE_COMPFIX=true` plus a permission fix on `$(brew --prefix)/share` to stop the compinit *"Ignore insecure directories"* prompt
 - `source <(kubectl completion zsh)` for kubectl tab completion
-- `zsh-autosuggestions` and `zsh-syntax-highlighting` (sourced last)
+- `zsh-autosuggestions` and `fast-syntax-highlighting` (Oh My Zsh `plugins=(…)`; highlighting loaded with OMZ)
 
 ---
 
@@ -317,16 +358,31 @@ Wired into `~/.zshrc`:
 
 ### fzf (`config/fzf/fzf.env`)
 
-- Uses `fd` for file and directory search (respects ignore rules)
-- Reverse layout, border, inline info
-- Shell completion and key bindings from Homebrew fzf
-- Custom zsh bindkey `ç` → `fzf-cd-widget`
+Based on [radleylewis/zsh `fzf.zsh`](https://github.com/radleylewis/zsh/blob/main/fzf.zsh):
+
+- `fd` for files (Ctrl-T) and directories (Alt+C / `ç`); `--strip-cwd-prefix`
+- Rounded border, 60% height, preview pane on the right (`bat` for file preview)
+- Homebrew fzf completion and default key bindings (Ctrl-T, Alt+C)
+- Zsh: `ç` → `fzf-cd-widget`; **Ctrl+F** → live ripgrep in fzf (same patterns as `s`), Enter opens **nvim** at the match
 
 ### ripgrep (`config/ripgrep/ripgreprc`)
 
 - Smart case matching
 - Searches hidden files
 - Skips `.git/` contents
+
+### bat-extras (Homebrew `bat-extras`)
+
+Installed via `Brewfile`; see upstream docs for options and formatters:
+
+| Command | Purpose | Doc |
+|---------|---------|-----|
+| `prettybat` | Format source, then highlight with `bat` | [prettybat](https://github.com/eth-p/bat-extras/blob/master/doc/prettybat.md) |
+| `batgrep` | Search with `rg`, print with `bat` | [batgrep](https://github.com/eth-p/bat-extras/blob/master/doc/batgrep.md) |
+| `batdiff` | Diff vs git index, two files, or `--staged` | [batdiff](https://github.com/eth-p/bat-extras/blob/master/doc/batdiff.md) |
+| `batman` | `man` through `bat` (fzf search if `fzf` installed) | [batman](https://github.com/eth-p/bat-extras/blob/master/doc/batman.md) |
+
+`config/shell/bat` runs `eval "$(batman --export-env)"` so normal `man` uses `batman` when available.
 
 ### Shared ignore file (`ignore`)
 
@@ -371,7 +427,7 @@ Restart iTerm2 after install to pick up profile and theme changes.
 
 ## Terminal.app
 
-- Profile **`config/terminal/catppuccin-mocha.terminal`** (your exported Terminal settings) imported on every `dotinstall`
+- Profile **`config/terminal/github-dark.terminal`** (your exported Terminal settings) imported on every `dotinstall`
 - Set as **Default Window Settings** and **Startup Window Settings**
 - Open a **new** Terminal window after install; if import fails, open Terminal once and re-run `config/terminal/install.sh`
 

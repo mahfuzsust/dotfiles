@@ -2,7 +2,7 @@
 set -e
 
 DOTFILES_DIR="${0:A:h:h:h}"
-TERMINAL_THEME="$DOTFILES_DIR/config/terminal/catppuccin-mocha.terminal"
+TERMINAL_THEME="$DOTFILES_DIR/config/terminal/github-dark.terminal"
 TERMINAL_PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
 
 if [[ ! -f "$TERMINAL_THEME" ]]; then

@@ -26,6 +26,11 @@ brew "minikube" # Minikube is a tool for running Kubernetes locally
 brew "kubectl" # Kubectl is a command-line tool for managing Kubernetes clusters
 brew "tree" # Tree is a command-line tool for displaying directories as a tree
 brew "tmux" # Tmux is a terminal multiplexer
+brew "zoxide" # Zoxide is a command-line tool for managing directories
+brew "eza" # Eza is a command-line tool for managing files and directories
+brew "bat" # Bat is a command-line tool for viewing files
+brew "bat-extras" # prettybat, batgrep, batdiff, batman (https://github.com/eth-p/bat-extras)
+brew "git-delta" # delta — syntax-highlighting pager for git/diff (https://github.com/dandavison/delta)
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
 brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions

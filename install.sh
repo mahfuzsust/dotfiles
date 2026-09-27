@@ -220,6 +220,10 @@ echo "Setting up symlinks..."
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
 link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
+mkdir -p "$CONFIG_DIR/zsh"
+for zsh_file in "$DOTFILES_DIR/config/zsh"/*(N); do
+    link_file "$zsh_file" "$CONFIG_DIR/zsh/${zsh_file:t}"
+done
 link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_file "$DOTFILES_DIR/config/tmux/tmux.conf" "$CONFIG_DIR/tmux/tmux.conf"
 link_file "$DOTFILES_DIR/config/tmux/status-right.sh" "$CONFIG_DIR/tmux/status-right.sh"
@@ -312,7 +316,7 @@ defaults_write_if_needed com.googlecode.iterm2 PromptOnQuit 0
 # Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
 defaults_write_if_needed com.googlecode.iterm2 TabStyleWithAutomaticOption 1
 
-# --- macOS Terminal.app (catppuccin-mocha) ---
+# --- macOS Terminal.app (github-dark) ---
 
 echo "Configuring Terminal.app..."
 chmod +x "$DOTFILES_DIR/config/terminal/install.sh"
@@ -349,15 +353,19 @@ link_file "$DOTFILES_DIR/config/git/gpr" "$CONFIG_DIR/git/gpr"
 link_file "$DOTFILES_DIR/config/git/gclean" "$CONFIG_DIR/git/gclean"
 link_file "$DOTFILES_DIR/config/git/greview" "$CONFIG_DIR/git/greview"
 link_file "$DOTFILES_DIR/config/git/setup-gpg" "$CONFIG_DIR/git/setup-gpg"
+link_file "$DOTFILES_DIR/config/git/setup-delta" "$CONFIG_DIR/git/setup-delta"
 rm -f "$CONFIG_DIR/git/gpgcopy" "$CONFIG_DIR/git/git_aliases" 2>/dev/null || true
 rm -f "$CONFIG_DIR/git/preview" 2>/dev/null || true
-chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/greview" "$CONFIG_DIR/git/setup-gpg"
+chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/greview" "$CONFIG_DIR/git/setup-gpg" "$CONFIG_DIR/git/setup-delta"
 
 git config --global --unset include.path 2>/dev/null || true
 
 # GPG commit signing (setup-gpg skips when signing key is already configured)
 echo "Setting up GPG commit signing..."
 "$DOTFILES_DIR/config/git/setup-gpg"
+
+echo "Setting up git delta pager..."
+"$DOTFILES_DIR/config/git/setup-delta"
 
 install_oh_my_zsh() {
     local omz_dir="$HOME/.oh-my-zsh"
@@ -386,6 +394,20 @@ install_zsh_autosuggestions() {
     echo "zsh-autosuggestions installed."
 }
 
+install_fast_syntax_highlighting() {
+    local plugin_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting"
+
+    if [[ -d "$plugin_dir" ]]; then
+        echo "fast-syntax-highlighting is already installed."
+        return 0
+    fi
+
+    echo "Installing fast-syntax-highlighting..."
+    mkdir -p "$(dirname "$plugin_dir")"
+    git clone --depth=1 https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$plugin_dir"
+    echo "fast-syntax-highlighting installed."
+}
+
 ensure_zsh_autosuggestions_plugin() {
     local shell_rc="$1"
 
@@ -407,6 +429,43 @@ ensure_zsh_autosuggestions_plugin() {
     done <"$shell_rc" >"$temp_rc"
     mv "$temp_rc" "$shell_rc"
     echo "Added zsh-autosuggestions to Oh My Zsh plugins in $shell_rc"
+}
+
+ensure_fast_syntax_highlighting_plugin() {
+    local shell_rc="$1"
+    local temp_rc="" changed=0 line=""
+
+    if ! grep -q '^plugins=(' "$shell_rc" 2>/dev/null; then
+        return 0
+    fi
+
+    temp_rc="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == plugins=* ]]; then
+            if [[ "$line" == *zsh-syntax-highlighting* ]]; then
+                line="${line//zsh-syntax-highlighting/}"
+                line="${line//  / }"
+                line="${line/plugins=( /plugins=(}"
+                changed=1
+            fi
+            if [[ "$line" != *fast-syntax-highlighting* ]]; then
+                line="${line%)} fast-syntax-highlighting)"
+                changed=1
+            fi
+        fi
+        print -r -- "$line"
+    done <"$shell_rc" >"$temp_rc"
+    mv "$temp_rc" "$shell_rc"
+
+    if (( changed )); then
+        echo "Added fast-syntax-highlighting to Oh My Zsh plugins in $shell_rc"
+    fi
+}
+
+migrate_away_from_brew_syntax_highlighting() {
+    local shell_rc="$1"
+
+    remove_dotfiles_syntax_highlighting_block "$shell_rc"
 }
 
 cleanup_gpg_tty_in_zshrc() {
@@ -449,15 +508,42 @@ cleanup_gpg_tty_in_zshrc() {
     fi
 }
 
-ensure_local_bin_in_zshrc() {
+migrate_local_bin_from_zshrc() {
+    local shell_rc="$1"
+    local temp_rc="" removed=0 skip_local_bin=0
+
+    [[ -f "$shell_rc" ]] || return 0
+    grep -q 'DOTFILES LOCAL BIN' "$shell_rc" 2>/dev/null || return 0
+
+    temp_rc="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == "# DOTFILES LOCAL BIN" ]]; then
+            skip_local_bin=1
+            removed=1
+            continue
+        fi
+        if (( skip_local_bin )) && [[ "$line" == 'export PATH="$HOME/.local/bin:$PATH"' ]]; then
+            skip_local_bin=0
+            continue
+        fi
+        skip_local_bin=0
+        print -r -- "$line"
+    done <"$shell_rc" >"$temp_rc"
+    mv "$temp_rc" "$shell_rc"
+
+    if (( removed )); then
+        echo "Moved ~/.local/bin PATH from $shell_rc to ~/.config/zsh/zprofile (login shell)"
+    fi
+}
+
+ensure_zoxide_in_zshrc() {
     local shell_rc="$1"
 
-    if grep -q 'DOTFILES LOCAL BIN' "$shell_rc" 2>/dev/null \
-        && grep -q '\$HOME/.local/bin' "$shell_rc" 2>/dev/null; then
+    if ! grep -q "DOTFILES SETUP" "$shell_rc" 2>/dev/null; then
         return 0
     fi
 
-    if ! grep -q "DOTFILES SETUP" "$shell_rc" 2>/dev/null; then
+    if grep -q 'config/zsh/zoxide.env' "$shell_rc" 2>/dev/null; then
         return 0
     fi
 
@@ -465,19 +551,120 @@ ensure_local_bin_in_zshrc() {
     temp_rc="$(mktemp)"
     while IFS= read -r line || [[ -n "$line" ]]; do
         print -r -- "$line"
-        if [[ "$line" == "export GPG_TTY=\$(tty)" ]] && (( ! added )) \
-            && ! grep -q 'DOTFILES LOCAL BIN' "$shell_rc" 2>/dev/null; then
-            print -r -- ""
-            print -r -- "# DOTFILES LOCAL BIN"
-            print -r -- 'export PATH="$HOME/.local/bin:$PATH"'
+        if [[ "$line" == *'config/fzf/fzf.env'* ]] && (( ! added )); then
+            print -r -- "# Source zoxide"
+            print -r -- 'source "$HOME/.config/zsh/zoxide.env"'
             added=1
         fi
     done <"$shell_rc" >"$temp_rc"
     mv "$temp_rc" "$shell_rc"
 
     if (( added )); then
-        echo "Ensured ~/.local/bin in PATH in $shell_rc"
+        echo "Added zoxide to DOTFILES SETUP in $shell_rc"
     fi
+}
+
+ensure_dotfiles_zshenv() {
+    local zshenv="$HOME/.zshenv"
+    local block=""
+
+    block="$(cat <<'EOF'
+# --- DOTFILES ZSHENV ---
+[[ -f "$HOME/.config/zsh/zenv" ]] && source "$HOME/.config/zsh/zenv"
+# --- END DOTFILES ZSHENV ---
+EOF
+)"
+
+    if [[ -f "$zshenv" ]] && grep -q "DOTFILES ZSHENV" "$zshenv" 2>/dev/null; then
+        return 0
+    fi
+
+    if [[ ! -f "$zshenv" ]]; then
+        print -r -- "$block" >"$zshenv"
+        echo "Created $zshenv with dotfiles zenv"
+        return 0
+    fi
+
+    local temp_env=""
+    temp_env="$(mktemp)"
+    print -r -- "$block" >"$temp_env"
+    cat "$zshenv" >>"$temp_env"
+    mv "$temp_env" "$zshenv"
+    echo "Prepended dotfiles zenv block to $zshenv"
+}
+
+ensure_dotfiles_zprofile() {
+    local zprofile="$HOME/.zprofile"
+    local block=""
+
+    block="$(cat <<'EOF'
+# --- DOTFILES ZPROFILE ---
+[[ -f "$HOME/.config/zsh/zprofile" ]] && source "$HOME/.config/zsh/zprofile"
+# --- END DOTFILES ZPROFILE ---
+EOF
+)"
+
+    if [[ -f "$zprofile" ]] && grep -q "DOTFILES ZPROFILE" "$zprofile" 2>/dev/null; then
+        return 0
+    fi
+
+    if [[ ! -f "$zprofile" ]]; then
+        print -r -- "$block" >"$zprofile"
+        echo "Created $zprofile with dotfiles login environment"
+        return 0
+    fi
+
+    local temp_profile=""
+    temp_profile="$(mktemp)"
+    print -r -- "$block" >"$temp_profile"
+    print -r -- "" >>"$temp_profile"
+    cat "$zprofile" >>"$temp_profile"
+    mv "$temp_profile" "$zprofile"
+    echo "Prepended dotfiles zprofile block to $zprofile"
+}
+
+cleanup_duplicate_brew_shellenv_in_zprofile() {
+    local zprofile="$1"
+    local temp_profile="" removed=0 in_dotfiles_block=0
+
+    [[ -f "$zprofile" ]] || return 0
+    grep -q "DOTFILES ZPROFILE" "$zprofile" 2>/dev/null || return 0
+
+    temp_profile="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == "# --- DOTFILES ZPROFILE ---" ]]; then
+            in_dotfiles_block=1
+            print -r -- "$line"
+            continue
+        fi
+        if [[ "$line" == "# --- END DOTFILES ZPROFILE ---" ]]; then
+            in_dotfiles_block=0
+            print -r -- "$line"
+            continue
+        fi
+        if (( in_dotfiles_block )); then
+            print -r -- "$line"
+            continue
+        fi
+        if [[ "$line" == *'brew shellenv'* ]]; then
+            removed=1
+            continue
+        fi
+        print -r -- "$line"
+    done <"$zprofile" >"$temp_profile"
+    mv "$temp_profile" "$zprofile"
+
+    if (( removed )); then
+        echo "Removed duplicate brew shellenv from $zprofile (using ~/.config/zsh/zprofile)"
+    fi
+}
+
+normalize_zprofile() {
+    local zprofile="$HOME/.zprofile"
+
+    remove_duplicate_dotfiles_blocks "$zprofile" "DOTFILES ZPROFILE" \
+        "# --- DOTFILES ZPROFILE ---" "# --- END DOTFILES ZPROFILE ---"
+    cleanup_duplicate_brew_shellenv_in_zprofile "$zprofile"
 }
 
 ensure_gpg_tty_in_zshrc() {
@@ -595,43 +782,6 @@ remove_dotfiles_syntax_highlighting_block() {
     mv "$temp_rc" "$shell_rc"
 
     (( removed )) && echo "Removed old zsh-syntax-highlighting block from $shell_rc"
-}
-
-ensure_syntax_highlighting_in_zshrc() {
-    local shell_rc="$1"
-
-    if ! command -v brew >/dev/null 2>&1; then
-        echo "Homebrew not found; skipping zsh-syntax-highlighting setup" >&2
-        return 0
-    fi
-
-    if ! brew --prefix zsh-syntax-highlighting >/dev/null 2>&1; then
-        echo "zsh-syntax-highlighting is not installed; run dotinstall to install Brew packages" >&2
-        return 0
-    fi
-
-    if grep -q "DOTFILES SYNTAX HIGHLIGHTING" "$shell_rc" 2>/dev/null; then
-        if grep -q 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' "$shell_rc" 2>/dev/null; then
-            return 0
-        fi
-        remove_dotfiles_syntax_highlighting_block "$shell_rc"
-    elif grep -q 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' "$shell_rc" 2>/dev/null; then
-        cleanup_stale_brew_zsh_plugins_in_zshrc "$shell_rc"
-    fi
-
-    cat << 'EOF' >> "$shell_rc"
-
-# --- DOTFILES SYNTAX HIGHLIGHTING ---
-# Must be sourced last: https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/INSTALL.md
-if type brew &>/dev/null; then
-  BREW_PREFIX=$(brew --prefix)
-  if [ -f "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]; then
-    source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-  fi
-fi
-# --- END DOTFILES SYNTAX HIGHLIGHTING ---
-EOF
-    echo "Added zsh-syntax-highlighting to end of $shell_rc"
 }
 
 ensure_kubectl_completion_in_zshrc() {
@@ -848,6 +998,9 @@ normalize_zshrc() {
         "# --- DOTFILES SETUP ---" "# --- END DOTFILES SETUP ---" \
         "config/fzf/fzf.env" "fzf"
     remove_source_outside_dotfiles_block "$shell_rc" \
+        "# --- DOTFILES SETUP ---" "# --- END DOTFILES SETUP ---" \
+        "config/zsh/zoxide.env" "zoxide"
+    remove_source_outside_dotfiles_block "$shell_rc" \
         "# --- DOTFILES ALIASES ---" "# --- END DOTFILES ALIASES ---" \
         "config/shell/aliases" "aliases"
     remove_source_outside_dotfiles_block "$shell_rc" \
@@ -899,7 +1052,7 @@ ensure_oh_my_zsh_in_zshrc() {
 # Oh My Zsh
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
-plugins=(git zsh-autosuggestions)
+plugins=(git zsh-autosuggestions fast-syntax-highlighting)
 
 source "$ZSH/oh-my-zsh.sh"
 
@@ -920,8 +1073,10 @@ SHELL_RC="$HOME/.zshrc"
 
 install_oh_my_zsh
 install_zsh_autosuggestions
+install_fast_syntax_highlighting
 ensure_oh_my_zsh_in_zshrc "$SHELL_RC"
 ensure_zsh_autosuggestions_plugin "$SHELL_RC"
+ensure_fast_syntax_highlighting_plugin "$SHELL_RC"
 
 # Homebrew's share dir is group-writable by default, which triggers the compinit
 # "Ignore insecure directories" prompt on every new shell.
@@ -964,11 +1119,10 @@ EOF
 # DOTFILES GPG TTY
 export GPG_TTY=$(tty)
 
-# DOTFILES LOCAL BIN
-export PATH="$HOME/.local/bin:$PATH"
-
 # Source fzf configuration
 source "$HOME/.config/fzf/fzf.env"
+# Source zoxide
+source "$HOME/.config/zsh/zoxide.env"
 # --- END DOTFILES SETUP ---
 EOF
         echo "Added plugins and fzf env to $SHELL_RC"
@@ -989,10 +1143,14 @@ EOF
     fi
 
     ensure_gpg_tty_in_zshrc "$SHELL_RC"
-    ensure_local_bin_in_zshrc "$SHELL_RC"
+    migrate_local_bin_from_zshrc "$SHELL_RC"
+    ensure_zoxide_in_zshrc "$SHELL_RC"
     normalize_zshrc "$SHELL_RC"
+    ensure_dotfiles_zshenv
+    ensure_dotfiles_zprofile
+    normalize_zprofile
     ensure_kubectl_completion_in_zshrc "$SHELL_RC"
-    ensure_syntax_highlighting_in_zshrc "$SHELL_RC"
+    migrate_away_from_brew_syntax_highlighting "$SHELL_RC"
 
     set +e
     source "$SHELL_RC" 2>/dev/null
