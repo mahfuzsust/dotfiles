@@ -7,6 +7,8 @@
 #   s 'abc*'      lines starting with abc
 #   s '*abc*'     lines containing abc (same as abc for plain text)
 #   s abc ./src   search under ./src
+#
+# Ctrl+F / Ctrl+N: type a full ripgrep argument list (e.g. -i -t md TODO), not s wildcards.
 
 _search_usage() {
   cat >&2 <<'EOF'
@@ -204,6 +206,11 @@ se() {
     shift
   fi
 
+  if [[ $# -eq 0 ]]; then
+    _searche_usage
+    return 1
+  fi
+
   pattern="${1:-}"
   if [[ -z "$pattern" ]]; then
     _searche_usage
@@ -225,36 +232,25 @@ se() {
 
   _search_pattern "$pattern" || return $?
 
+  local target_abs="${target:A}"
+  target_abs="${target_abs%/}"
+  local preview_cmd="bat --style=numbers --color=always --highlight-line {2} ${(q)target_abs}/{1}"
+
   selected="$(
     _search_run_rg "$target" --line-number --no-heading --color=never 2>/dev/null \
       | fzf --delimiter : --nth 3.. \
-          --prompt='Open match> ' --height=40% --reverse --border
+          --prompt='Open match> ' \
+          --preview "$preview_cmd" \
+          --preview-window 'up,60%,border-bottom,+{2}+3/3,~3'
   )"
   [[ -n "$selected" ]] || return 0
 
   _searche_open "$editor" "$selected"
 }
 
-# Live ripgrep in fzf (same patterns as s). Zsh: Ctrl+F (cwd), Ctrl+N (NOTES_DIR).
-_fzf_rg_fzf_source() {
-  local query="$1" target="${2:-.}"
-
-  [[ -n "$query" ]] || return 0
-  [[ -e "$target" ]] || return 0
-  _search_pattern "$query" || return 0
-  # Search from inside target so fzf lists paths relative to that directory.
-  (
-    cd "$target" || exit 0
-    _search_run_rg "." --line-number --no-heading --color=never 2>/dev/null \
-      | while IFS= read -r line; do
-          [[ -n "$line" ]] || continue
-          if [[ "$line" == ./* ]]; then
-            line="${line#./}"
-          fi
-          print -r -- "$line"
-        done
-  )
-}
+_FZF_RG_LIB="${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-lib.zsh"
+[[ -f "$_FZF_RG_LIB" ]] && source "$_FZF_RG_LIB"
+unset _FZF_RG_LIB
 
 _fzf_rg_resolve_entry() {
   local target="$1" entry="$2" file=""
@@ -264,17 +260,96 @@ _fzf_rg_resolve_entry() {
   print -r -- "${target%/}/${entry}"
 }
 
-_fzf_rg_search_widget() {
-  local target="$1" prompt="$2" selected="" target_abs="" preview_cmd=""
-  local reloader="${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-reload.zsh"
-  local reload_bind=""
+_fzf_rg_zle_restore() {
+  emulate -L zsh
+  stty sane 2>/dev/null
+  zle -I 2>/dev/null
+  zle reset-prompt 2>/dev/null
+  zle -R 2>/dev/null
+}
 
+_fzf_rg_open_match() {
+  local target_abs="$1" selected="$2" entry="" file="" line="" rest=""
+
+  entry="$(_fzf_rg_resolve_entry "$target_abs" "$selected")"
+  file="${entry%%:*}"
+  rest="${entry#*:}"
+  line="${rest%%:*}"
+  [[ "$line" =~ '^[0-9]+$' ]] || line=1
+
+  {
+    command nvim "+$line" "$file" < /dev/tty > /dev/tty 2>&1
+  } always {
+    stty sane 2>/dev/null
+  }
+}
+
+# Same fzf UI for Ctrl+F and Ctrl+N (uses fzf.env layout; bat preview scrolls to match line).
+_fzf_rg_pick() {
+  local prompt="$1" preview_cmd="$2" reload_bind="$3"
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  local rg_bind="change:reload-sync:${reload_bind}"
+  local rg_extra="
+    --disabled
+    --delimiter :
+    --nth 3..
+    --prompt=${(q)prompt}
+    --preview ${(q)preview_cmd}
+    --preview-window right:65%:wrap:border-left,+{2}+3/3,~3
+    --bind ${(q)rg_bind}
+  "
+
+  local stty_saved=""
+  [[ -t 0 ]] && stty_saved="$(stty -g 2>/dev/null)"
+
+  if (( $+functions[__fzf_defaults] && $+functions[__fzfcmd] )); then
+    FZF_DEFAULT_COMMAND=:
+    FZF_DEFAULT_OPTS="$(
+      __fzf_defaults \
+        "--height=60% --layout=reverse --border=rounded --prompt='  ' --pointer='  '" \
+        "${rg_extra}"
+    )"
+    FZF_DEFAULT_OPTS_FILE=''
+    $(__fzfcmd) < /dev/tty
+  else
+    FZF_DEFAULT_OPTS_FILE=''
+    FZF_DEFAULT_OPTS='--height=60% --layout=reverse --border=rounded --preview-window=right:65%:wrap:border-left'
+    command fzf --disabled \
+      --delimiter : \
+      --nth 3.. \
+      --prompt="$prompt" \
+      --preview "$preview_cmd" \
+      --preview-window 'right:65%:wrap:border-left,+{2}+3/3,~3' \
+      --bind "change:reload-sync:${reload_bind}" \
+      < /dev/tty
+  fi
+  local ret=$?
+  if [[ -n "$stty_saved" ]]; then
+    stty "$stty_saved" 2>/dev/null
+  fi
+  stty sane 2>/dev/null
+  return $ret
+}
+
+_fzf_rg_live_widget() {
+  emulate -L zsh
+  setopt localoptions pipefail no_aliases 2>/dev/null
+
+  local target="$1" prompt="$2"
+  local target_abs="${target:A}" reloader="" preview_cmd="" reload_bind="" selected=""
+
+  reloader="${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-reload.zsh"
   if ! command -v fzf >/dev/null 2>&1; then
     zle -M "fzf not found"
     return 1
   fi
   if ! command -v rg >/dev/null 2>&1; then
     zle -M "rg not found"
+    return 1
+  fi
+  if [[ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-lib.zsh" ]]; then
+    zle -M "missing rg-fzf-lib.zsh (run dotinstall)"
     return 1
   fi
   if [[ ! -x "$reloader" ]]; then
@@ -286,47 +361,77 @@ _fzf_rg_search_widget() {
     return 1
   fi
 
-  target_abs="${target:A}"
   target_abs="${target_abs%/}"
-  reload_bind="${(q)reloader} {q} ${(q)target_abs}"
-  preview_cmd="bat --color=always --style=numbers --line-range {2}:+60 ${(q)target_abs}/{1}"
+  reload_bind="FZF_RG_TARGET=${(q)target_abs} ${(q)reloader}"
+  preview_cmd="bat --style=numbers --color=always --highlight-line {2} ${(q)target_abs}/{1}"
 
   zle -I
-  selected="$(
-    : | fzf --phony \
-      --delimiter : \
-      --nth 3.. \
-      --prompt="$prompt" \
-      --bind "start:reload:${reload_bind}" \
-      --bind "change:reload:${reload_bind}" \
-      --preview "$preview_cmd" \
-      --preview-window 'right:65%:wrap:border-left'
-  )"
-  zle reset-prompt
+  selected="$(_fzf_rg_pick "$prompt" "$preview_cmd" "$reload_bind")"
+  _fzf_rg_zle_restore
 
   [[ -n "$selected" ]] || return 0
-  _searche_open nvim "$(_fzf_rg_resolve_entry "$target_abs" "$selected")"
-  zle reset-prompt
+  _fzf_rg_open_match "$target_abs" "$selected"
+  _fzf_rg_zle_restore
+  return 0
 }
 
 _fzf_rg_content_widget() {
-  _fzf_rg_search_widget "." 'Rg> '
+  emulate -L zsh
+  (( ${+_DOTFILES_FZF_RG_ACTIVE} )) && return 0
+  typeset -g _DOTFILES_FZF_RG_ACTIVE=1
+
+  {
+    _fzf_rg_live_widget "${PWD:A}" 'Rg> '
+  } always {
+    unset _DOTFILES_FZF_RG_ACTIVE
+    _fzf_rg_zle_restore
+  }
 }
 
 _fzf_rg_notes_widget() {
-  local dir="${NOTES_DIR:-}"
+  emulate -L zsh
+  (( ${+_DOTFILES_FZF_RG_ACTIVE} )) && return 0
+  typeset -g _DOTFILES_FZF_RG_ACTIVE=1
 
-  if [[ -z "$dir" ]]; then
-    zle -M "NOTES_DIR not set (run dotinstall after user-config.yml notes.directory)"
-    return 1
-  fi
+  {
+    local dir="${NOTES_DIR:-}"
 
-  _fzf_rg_search_widget "$dir" 'Notes> '
+    if [[ -z "$dir" ]]; then
+      zle -M "NOTES_DIR not set (run dotinstall after user-config.yml notes.directory)"
+      return 1
+    fi
+
+    _fzf_rg_live_widget "${dir:A}" 'Notes> '
+  } always {
+    unset _DOTFILES_FZF_RG_ACTIVE
+    _fzf_rg_zle_restore
+  }
 }
 
-if [[ -n "$ZSH_VERSION" ]]; then
-  zle -N _fzf_rg_content_widget
-  zle -N _fzf_rg_notes_widget
-  bindkey '^F' _fzf_rg_content_widget
-  bindkey '^N' _fzf_rg_notes_widget
+_dotfiles_s_bind_fzf_rg_keymaps() {
+  local km
+  for km in emacs viins vicmd; do
+    bindkey -M "$km" '^F' _fzf_rg_content_widget
+    bindkey -M "$km" '^N' _fzf_rg_notes_widget
+  done
+}
+
+_dotfiles_s_register_fzf_rg_widgets() {
+  (( ${+_DOTFILES_S_FZF_ZLE_BOUND} )) && return 0
+  [[ -o zle ]] || return 1
+
+  zle -N _fzf_rg_content_widget || return 1
+  zle -N _fzf_rg_notes_widget || return 1
+  _dotfiles_s_bind_fzf_rg_keymaps
+  typeset -g _DOTFILES_S_FZF_ZLE_BOUND=1
+}
+
+if [[ -n "$ZSH_VERSION" && -o interactive ]]; then
+  if ! _dotfiles_s_register_fzf_rg_widgets; then
+    autoload -Uz add-zsh-hook
+    _dotfiles_s_precmd_bind_fzf_rg() {
+      _dotfiles_s_register_fzf_rg_widgets && add-zsh-hook -d precmd _dotfiles_s_precmd_bind_fzf_rg
+    }
+    add-zsh-hook precmd _dotfiles_s_precmd_bind_fzf_rg
+  fi
 fi

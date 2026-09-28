@@ -223,6 +223,7 @@ echo "Setting up symlinks..."
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
 link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
+link_file "$DOTFILES_DIR/config/fzf/rg-fzf-lib.zsh" "$CONFIG_DIR/fzf/rg-fzf-lib.zsh"
 link_file "$DOTFILES_DIR/config/fzf/rg-fzf-reload.zsh" "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 chmod +x "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 mkdir -p "$CONFIG_DIR/zsh"

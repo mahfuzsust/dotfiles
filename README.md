@@ -307,7 +307,7 @@ What it does:
 | Command | Purpose |
 |---------|---------|
 | `s <pattern> [path]` | ripgrep; `*text` = ends with, `text*` = starts with |
-| `se [editor] <pattern> [path]` | fzf pick, open in nvim/cursor at the line |
+| `se [editor] <pattern> [path]` | fzf + bat preview; open in nvim/cursor at the line |
 
 **`s` patterns**
 
@@ -329,9 +329,9 @@ Quote patterns with `*` so the shell does not expand them: `s '*Error' ./src`
 | `se cursor '*Error' ./src` | Cursor |
 | `se code timeout` | VS Code |
 
-Optional editor comes first, then the same patterns as `s`. fzf shows `file:line:content`; Enter opens at that line.
+Optional editor comes first, then the same patterns as `s`. fzf uses bat preview (`highlight-line`, pane above); Enter opens at that line.
 
-In any zsh directory, **Ctrl+F** opens the same ripgrep search live in fzf (cwd, no initial pattern); **Ctrl+N** searches **`NOTES_DIR`** (Obsidian vault from `user-config.yml`). Enter opens **nvim** at the match.
+**Ctrl+F** / **Ctrl+N** — live fzf + bat preview; the search box is passed to **`rg`** as arguments (e.g. `-i -t md TODO`, `foo`, `-F 'exact'`). **`s`** / **`se`** wildcards do not apply there. **Ctrl+N** uses **`NOTES_DIR`**.
 
 ### Zsh startup (`config/zsh/`)
 
@@ -365,7 +365,7 @@ Based on [radleylewis/zsh `fzf.zsh`](https://github.com/radleylewis/zsh/blob/mai
 - `fd` for files (Ctrl-T) and directories (Alt+C / `ç`); `--strip-cwd-prefix`
 - Rounded border, 60% height, preview pane on the right (`bat` for file preview)
 - Homebrew fzf completion and default key bindings (Ctrl-T, Alt+C)
-- Zsh: `ç` → `fzf-cd-widget`; **Ctrl+F** → live ripgrep in fzf (cwd); **Ctrl+N** → same in `NOTES_DIR`; Enter opens **nvim** at the match
+- Zsh: `ç` → `fzf-cd-widget`; **Ctrl+F** / **Ctrl+N** → live **`rg`** in fzf (full rg args in query) with bat preview; Enter opens **nvim** at the match
 
 ### ripgrep (`config/ripgrep/ripgreprc`)
 
