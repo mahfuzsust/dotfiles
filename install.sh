@@ -16,8 +16,11 @@ load_user_config "$USER_CONFIG"
 apply_git_user_from_config
 write_github_env "$CONFIG_DIR/dotfiles/github.env"
 apply_github_from_config
+load_notes_dir_from_config "$USER_CONFIG"
+write_notes_env "$CONFIG_DIR/dotfiles/notes.env"
 echo "Git user: $USER_NAME <$USER_EMAIL>"
 echo "GitHub user: $GITHUB_USERNAME"
+echo "Notes dir: $NOTES_DIR"
 
 # 2. Install Homebrew if it isn't installed
 if ! command -v brew &> /dev/null; then
@@ -220,6 +223,8 @@ echo "Setting up symlinks..."
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
 link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
+link_file "$DOTFILES_DIR/config/fzf/rg-fzf-reload.zsh" "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
+chmod +x "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 mkdir -p "$CONFIG_DIR/zsh"
 for zsh_file in "$DOTFILES_DIR/config/zsh"/*(N); do
     link_file "$zsh_file" "$CONFIG_DIR/zsh/${zsh_file:t}"

@@ -107,6 +107,7 @@ From **`user-config.yml`** (copy from `user-config.example.yml`):
 
 - `git config --global user.name` / `user.email` from `user.name` / `user.email`
 - `github.username` → HTTPS→SSH URL rewrite for your repos, `gh` SSH protocol, and `GITHUB_USERNAME` in the shell
+- `notes.directory` → `NOTES_DIR` in the shell (default: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/_Notes_`; use `$HOME` or `~`, not your macOS username)
 
 The installer also sets:
 
@@ -280,6 +281,7 @@ What it does:
 | `bat` | `batman --export-env` for highlighted `man` (see bat-extras below) |
 | `git` | Git aliases and helpers (`gs`, `gco`, `gn`, `gac`, `gpr`, `grb`, …) |
 | `github` | `GITHUB_USERNAME` from install (`~/.config/dotfiles/github.env`) |
+| `notes` | `NOTES_DIR` from install (`~/.config/dotfiles/notes.env`) |
 | `dotinstall` | `dotinstall` → `~/dotfiles/install.sh` |
 | `s` / `open-project` / … | other helpers |
 
@@ -329,7 +331,7 @@ Quote patterns with `*` so the shell does not expand them: `s '*Error' ./src`
 
 Optional editor comes first, then the same patterns as `s`. fzf shows `file:line:content`; Enter opens at that line.
 
-In any zsh directory, **Ctrl+F** opens the same ripgrep search live in fzf (no initial pattern); Enter opens **nvim** at the match.
+In any zsh directory, **Ctrl+F** opens the same ripgrep search live in fzf (cwd, no initial pattern); **Ctrl+N** searches **`NOTES_DIR`** (Obsidian vault from `user-config.yml`). Enter opens **nvim** at the match.
 
 ### Zsh startup (`config/zsh/`)
 
@@ -363,12 +365,13 @@ Based on [radleylewis/zsh `fzf.zsh`](https://github.com/radleylewis/zsh/blob/mai
 - `fd` for files (Ctrl-T) and directories (Alt+C / `ç`); `--strip-cwd-prefix`
 - Rounded border, 60% height, preview pane on the right (`bat` for file preview)
 - Homebrew fzf completion and default key bindings (Ctrl-T, Alt+C)
-- Zsh: `ç` → `fzf-cd-widget`; **Ctrl+F** → live ripgrep in fzf (same patterns as `s`), Enter opens **nvim** at the match
+- Zsh: `ç` → `fzf-cd-widget`; **Ctrl+F** → live ripgrep in fzf (cwd); **Ctrl+N** → same in `NOTES_DIR`; Enter opens **nvim** at the match
 
 ### ripgrep (`config/ripgrep/ripgreprc`)
 
 - Smart case matching
 - Searches hidden files
+- Honors `.gitignore` (including outside a git repo via `--no-require-git`)
 - Skips `.git/` contents
 
 ### bat-extras (Homebrew `bat-extras`)

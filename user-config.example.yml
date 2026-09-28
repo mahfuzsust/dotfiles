@@ -5,3 +5,7 @@ user:
 
 github:
   username: your-github-username
+
+# Obsidian notes vault for Ctrl+N ripgrep search (override path; $HOME is expanded)
+notes:
+  directory: $HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/_Notes_

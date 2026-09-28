@@ -1,0 +1,4 @@
+# Obsidian notes path from user-config.yml (written by install.sh)
+typeset -g _DOTFILES_NOTES_ENV="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/notes.env"
+[[ -f "$_DOTFILES_NOTES_ENV" ]] && source "$_DOTFILES_NOTES_ENV"
+unset _DOTFILES_NOTES_ENV

@@ -1,4 +1,5 @@
 # Default ripgrep configurations
 --smart-case
 --hidden
+--no-require-git
 --glob=!.git/*
