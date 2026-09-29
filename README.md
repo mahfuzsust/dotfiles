@@ -300,7 +300,7 @@ What it does:
 | `gppr` | rebase onto `origin/main` (or master) with `--autostash`, then push (`-u origin` if new; `--force-with-lease` if diverged) |
 | `grbm` | `git rebase origin/main --autostash` only (no push) |
 | `gac`, `gpr`, `gprm`, `greview`, `gclean` | `~/.config/git/*` scripts |
-| `gm`, `gcl`, `gl`, `gt`, `gtp`, `gcp`, `grb` | merge, clone, log, tags, cherry-pick, interactive rebase |
+| `gm`, `gcl`, `gl`, `gt`, `gtp`, `gcp`, `grb` | merge, clone, log, tags, cherry-pick; `grb` → `git rebase -i --autostash` for commits since this branch was created |
 
 **`s` / `se`**
 

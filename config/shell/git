@@ -72,6 +72,41 @@ grr() {
   git clean -fd
 }
 
+_grb_fork_point() {
+  local branch="$1"
+  local fp="" line="" base=""
+
+  # Oldest reflog entry: commit HEAD pointed to when this branch was created.
+  line="$(git reflog show "$branch" --format='%H %gs' 2>/dev/null | tail -1)" || true
+  if [[ -n "$line" ]]; then
+    fp="${line%% *}"
+    if git cat-file -e "$fp^{commit}" 2>/dev/null; then
+      printf '%s' "$fp"
+      return 0
+    fi
+    fp=""
+  fi
+
+  if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    fp="$(git merge-base --fork-point '@{u}' HEAD 2>/dev/null || true)"
+    if [[ -n "$fp" ]] && git cat-file -e "$fp^{commit}" 2>/dev/null; then
+      printf '%s' "$fp"
+      return 0
+    fi
+  fi
+
+  base="$(_git_base_branch 2>/dev/null)" || return 1
+  if git show-ref --verify --quiet "refs/remotes/origin/$base" 2>/dev/null; then
+    fp="$(git merge-base "origin/$base" HEAD 2>/dev/null || true)"
+  fi
+  if [[ -z "$fp" ]] && git show-ref --verify --quiet "refs/heads/$base" 2>/dev/null; then
+    fp="$(git merge-base "$base" HEAD 2>/dev/null || true)"
+  fi
+
+  [[ -n "$fp" ]] || return 1
+  printf '%s' "$fp"
+}
+
 _git_base_branch() {
   local branch=""
 
@@ -157,6 +192,48 @@ gn() {
   fi
 }
 
+# Zsh: drop a pre-existing `grb` alias (old dotfiles or git plugins) before defining the function.
+unalias grb 2>/dev/null || true
+
+grb() {
+  local branch="" base="" onto="" count=0
+
+  git rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "grb: not a git repository" >&2
+    return 1
+  }
+
+  branch="$(git branch --show-current)"
+  if [[ -z "$branch" ]]; then
+    echo "grb: detached HEAD" >&2
+    return 1
+  fi
+
+  base="$(_git_base_branch)" || return 1
+  if [[ "$branch" == "$base" ]]; then
+    echo "grb: checkout a feature branch first (currently on $base)" >&2
+    return 1
+  fi
+
+  onto="$(_grb_fork_point "$branch")" || {
+    echo "grb: could not find where this branch was created (reflog expired?)" >&2
+    return 1
+  }
+
+  count="$(git rev-list --count "$onto"..HEAD 2>/dev/null || echo 0)"
+  if [[ "$count" -eq 0 ]]; then
+    echo "grb: no commits to rebase on this branch" >&2
+    return 1
+  fi
+
+  if [[ ! -e /dev/tty ]]; then
+    echo "grb: no TTY for interactive rebase (git rebase -i)" >&2
+    return 1
+  fi
+
+  git rebase -i --autostash "$onto" "$@" </dev/tty >/dev/tty
+}
+
 alias gac="$HOME/.config/git/gac"
 alias gpr="$HOME/.config/git/gpr --default-base"
 alias gprm="$HOME/.config/git/gpr"
@@ -169,7 +246,7 @@ alias gl="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %
 alias gt="git tag -l"
 alias gtp="git push --tags"
 alias gcp="git cherry-pick"
-alias grb="git rebase -i"
+alias grbi="git rebase -i"
 alias gs="git status -sb"
 alias gco="git checkout"
 alias gbd="git branch -d"

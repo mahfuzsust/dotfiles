@@ -16,6 +16,10 @@ fi
 
 types=(amend feat fix refactor docs style test chore perf ci build revert)
 
+restore_tty() {
+  stty sane 2>/dev/null || true
+}
+
 pick_option() {
   local prompt="$1"
   shift
@@ -23,6 +27,7 @@ pick_option() {
 
   if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
     choice="$(printf '%s\n' "$@" | fzf --prompt="${prompt} " --height=40% --border --reverse)"
+    restore_tty
   else
     echo "Select ${prompt}:"
     PS3="${prompt}> "
@@ -65,11 +70,12 @@ if [[ "$action" == amend ]]; then
   fi
 fi
 
+restore_tty
 if [[ -n "$default_message" ]]; then
-  read -r -p "Commit message [${default_message}]: " message
+  read -e -r -p "Commit message [${default_message}]: " message </dev/tty
   message="${message:-$default_message}"
 else
-  read -r -p "Commit message: " message
+  read -e -r -p "Commit message: " message </dev/tty
 fi
 
 message="${message%"${message##*[![:space:]]}"}"
