@@ -43,7 +43,6 @@ cask "iterm2" # iTerm2 is a terminal emulator
 cask "gcloud-cli" # Google Cloud CLI is a command-line tool for Google Cloud Platform
 cask "intellij-idea" # IntelliJ IDEA is a Java IDE for developing desktop and web applications
 cask "cursor" # Cursor is a code editor that is a modern, open-source, and customizable code editor
-cask "notion" # Notion is a note-taking and project management tool
 cask "obsidian" # Obsidian is a note-taking and knowledge management tool
 cask "postman" # Postman is a REST client for testing and developing APIs
 cask "mahfuzsust/tap/passbook" # Passbook is a password manager

@@ -49,37 +49,6 @@ tree.write(target_path, encoding="unicode", xml_declaration=False)
 PY
 }
 
-describe_bindings() {
-  /usr/bin/python3 - "$SOURCE_KEYMAP" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-root = ET.parse(sys.argv[1]).getroot()
-for action in root.findall("action"):
-    aid = action.get("id", "")
-    for ks in action.findall("keyboard-shortcut"):
-        stroke = ks.get("first-keystroke", "")
-        if not stroke:
-            continue
-        keys = (
-            stroke.replace("meta", "Cmd")
-            .replace("control", "Ctrl")
-            .replace("shift", "Shift")
-            .replace("alt", "Opt")
-            .replace("OPEN_BRACKET", "[")
-            .replace("CLOSE_BRACKET", "]")
-            .replace("open_bracket", "[")
-            .replace("close_bracket", "]")
-            .replace("openbracket", "[")
-            .replace("closebracket", "]")
-        )
-        if ks.get("removed") == "true":
-            print(f"  {keys} removed from {aid}")
-        else:
-            print(f"  {keys} → {aid}")
-PY
-}
-
 main() {
   local idea_dir="" keymaps_dir="" keymap_manager="" active="" target_keymap=""
 
@@ -88,10 +57,7 @@ main() {
     exit 1
   fi
 
-  idea_dir="$(find_idea_config_dir)" || {
-    echo "idea-keymap: IntelliJ IDEA config not found; open IDEA once, then re-run dotinstall"
-    exit 0
-  }
+  idea_dir="$(find_idea_config_dir)" || exit 0
 
   keymaps_dir="$idea_dir/keymaps"
   keymap_manager="$idea_dir/options/mac/keymap.xml"
@@ -108,25 +74,15 @@ main() {
   target_keymap="$keymaps_dir/${active}.xml"
   if [[ -f "$target_keymap" ]]; then
     merge_dotfiles_keymap_into "$target_keymap"
-    echo "idea-keymap: merged Dotfiles shortcuts into keymap \"$active\":"
-    describe_bindings
-  else
-    if [[ "$active" != "Dotfiles" ]]; then
-      echo "idea-keymap: active keymap \"$active\" has no file; also installed Dotfiles keymap"
-      echo "idea-keymap: select Settings → Keymap → Dotfiles, or duplicate your keymap to keymaps/${active}.xml"
-      describe_bindings | sed 's/^/idea-keymap:/'
-    else
-      merge_dotfiles_keymap_into "$keymaps_dir/Dotfiles.xml"
-      cat >"$keymap_manager" <<'EOF'
+  elif [[ "$active" == "Dotfiles" ]]; then
+    merge_dotfiles_keymap_into "$keymaps_dir/Dotfiles.xml"
+    cat >"$keymap_manager" <<'EOF'
 <application>
   <component name="KeymapManager">
     <active_keymap name="Dotfiles" />
   </component>
 </application>
 EOF
-      echo "idea-keymap: activated Dotfiles keymap:"
-      describe_bindings
-    fi
   fi
 }
 
