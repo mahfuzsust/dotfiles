@@ -184,6 +184,12 @@ if ! "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"; then
     echo "taskwarrior-obsidian install had failures; continuing" >&2
 fi
 
+echo "Installing claude-sessions..."
+chmod +x "$DOTFILES_DIR/config/claude-sessions/install.sh"
+if ! "$DOTFILES_DIR/config/claude-sessions/install.sh"; then
+    echo "claude-sessions install had failures; continuing" >&2
+fi
+
 # 4. Helper function for symlinking
 link_file() {
     local src=$1

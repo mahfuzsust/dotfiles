@@ -1,0 +1,4 @@
+# Claude Code session TUI — https://github.com/steveinflow/claude-sessions
+if command -v claude-sessions >/dev/null 2>&1; then
+  alias c='claude-sessions'
+fi
