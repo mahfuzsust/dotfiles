@@ -5,6 +5,45 @@ set -e # Exit on error
 DOTFILES_DIR="${0:A:h}"
 CONFIG_DIR="$HOME/.config"
 
+dotinstall_spin() {
+    local title="$1"
+    shift
+    local use_gum=0
+    command -v gum >/dev/null 2>&1 && [[ -t 1 ]] && use_gum=1
+
+    # gum spin exec(3)s argv[0]; zsh functions are not binaries.
+    if (( $# == 1 && ${+functions[$1]} )); then
+        local fn="$1" tmp="" ret=0
+        if (( use_gum )); then
+            tmp="$(mktemp "${TMPDIR:-/tmp}/dotinstall-spin.XXXXXX.zsh")"
+            {
+                print -r -- "typeset -g DOTFILES_DIR=${(q)DOTFILES_DIR}"
+                print -r -- "typeset -g CONFIG_DIR=${(q)CONFIG_DIR}"
+                print -r -- "typeset -g SHELL_RC=${(q)SHELL_RC}"
+                typeset -f
+                print -r -- "$fn"
+            } >"$tmp"
+            gum spin --spinner dot --title "$title" --show-output -- zsh -f "$tmp" || ret=$?
+            command rm -f "$tmp"
+            return ret
+        fi
+        print -r -- "$title"
+        "$fn"
+        return $?
+    fi
+
+    if (( use_gum )); then
+        gum spin --spinner dot --title "$title" --show-output -- "$@"
+    else
+        print -r -- "$title"
+        "$@"
+    fi
+}
+
+dotinstall_load_gum_env() {
+    [[ -f "$DOTFILES_DIR/config/gum/gum.env" ]] && source "$DOTFILES_DIR/config/gum/gum.env"
+}
+
 echo "Starting dotfiles installation..."
 
 USER_CONFIG="$DOTFILES_DIR/user-config.yml"
@@ -126,19 +165,16 @@ else
     fi
 fi
 
-echo "Running Brew update"
-brew update
+dotinstall_spin "Updating Homebrew…" brew update
 
 if [[ -n "$(brew outdated 2>/dev/null)" ]]; then
-    echo "Running Brew upgrade"
-    brew upgrade
+    dotinstall_spin "Upgrading Homebrew packages…" brew upgrade
 else
     echo "Homebrew packages already up to date"
 fi
 
 if brew cleanup -n 2>/dev/null | grep -q 'Would remove'; then
-    echo "Running Brew cleanup"
-    brew cleanup
+    dotinstall_spin "Cleaning Homebrew cache…" brew cleanup
 else
     echo "Nothing to brew cleanup"
 fi
@@ -147,19 +183,19 @@ fi
 # config rewrites GitHub HTTPS to SSH and the SSH agent has no keys after restart)
 if brew bundle check --file="$DOTFILES_DIR/Brewfile" >/dev/null 2>&1; then
     echo "Brewfile packages already installed"
-elif ! brew bundle --file="$DOTFILES_DIR/Brewfile"; then
+elif ! dotinstall_spin "Installing Brewfile packages…" brew bundle --file="$DOTFILES_DIR/Brewfile"; then
     echo "brew bundle had failures; continuing with symlinks and shell setup" >&2
 fi
 
-echo "Setting up Neovim (LazyVim starter)..."
+dotinstall_load_gum_env
+
 chmod +x "$DOTFILES_DIR/config/nvim/install.sh"
-if ! "$DOTFILES_DIR/config/nvim/install.sh"; then
+if ! dotinstall_spin "Setting up Neovim (LazyVim)…" "$DOTFILES_DIR/config/nvim/install.sh"; then
     echo "LazyVim starter install had failures; continuing" >&2
 fi
 
-echo "Installing Fira Code Nerd Font Mono..."
 chmod +x "$DOTFILES_DIR/config/fonts/install-fira-code-nerd-font-mono.sh"
-if ! "$DOTFILES_DIR/config/fonts/install-fira-code-nerd-font-mono.sh"; then
+if ! dotinstall_spin "Installing Fira Code Nerd Font…" "$DOTFILES_DIR/config/fonts/install-fira-code-nerd-font-mono.sh"; then
     echo "Fira Code Nerd Font Mono install had failures; continuing" >&2
 fi
 
@@ -178,15 +214,13 @@ if [[ -x "$taskwarrior_bin" ]] && [[ ! ( -e "$brew_prefix/bin/tk" && "${brew_pre
     ln -sfn "$taskwarrior_bin" "$brew_prefix/bin/tk"
 fi
 
-echo "Installing taskwarrior-obsidian..."
 chmod +x "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"
-if ! "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"; then
+if ! dotinstall_spin "Installing taskwarrior-obsidian…" "$DOTFILES_DIR/config/taskwarrior-obsidian/install.sh"; then
     echo "taskwarrior-obsidian install had failures; continuing" >&2
 fi
 
-echo "Installing claude-sessions..."
 chmod +x "$DOTFILES_DIR/config/claude-sessions/install.sh"
-if ! "$DOTFILES_DIR/config/claude-sessions/install.sh"; then
+if ! dotinstall_spin "Installing claude-sessions…" "$DOTFILES_DIR/config/claude-sessions/install.sh"; then
     echo "claude-sessions install had failures; continuing" >&2
 fi
 
@@ -224,7 +258,8 @@ defaults_write_if_needed() {
     defaults write "$domain" "$key" "$expected"
 }
 
-echo "Setting up symlinks..."
+dotinstall_apply_configuration() {
+    emulate -L zsh
 
 # Link tool configurations
 link_file "$DOTFILES_DIR/config/ripgrep/ripgreprc" "$CONFIG_DIR/ripgrep/ripgreprc"
@@ -232,6 +267,9 @@ link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
 link_file "$DOTFILES_DIR/config/fzf/rg-fzf-lib.zsh" "$CONFIG_DIR/fzf/rg-fzf-lib.zsh"
 link_file "$DOTFILES_DIR/config/fzf/rg-fzf-reload.zsh" "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 chmod +x "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
+mkdir -p "$CONFIG_DIR/gum"
+link_file "$DOTFILES_DIR/config/gum/helpers.sh" "$CONFIG_DIR/gum/helpers.sh"
+link_file "$DOTFILES_DIR/config/gum/gum.env" "$CONFIG_DIR/gum/gum.env"
 mkdir -p "$CONFIG_DIR/zsh"
 for zsh_file in "$DOTFILES_DIR/config/zsh"/*(N); do
     link_file "$zsh_file" "$CONFIG_DIR/zsh/${zsh_file:t}"
@@ -262,8 +300,7 @@ if command -v gh &>/dev/null; then
     if gh extension list 2>/dev/null | grep -q 'gh-stack'; then
         echo "gh-stack extension is already installed."
     else
-        echo "Installing gh extension: gh-stack..."
-        if gh extension install github/gh-stack; then
+        if dotinstall_spin "Installing gh-stack extension…" gh extension install github/gh-stack; then
             echo "gh-stack extension installed."
         else
             echo "Failed to install gh-stack extension (try: gh auth login)" >&2
@@ -282,8 +319,6 @@ link_file "$DOTFILES_DIR/ignore" "$HOME/.ignore"
 
 # --- iTerm2 Configuration ---
 
-echo "Configuring iTerm2..."
-
 ITERM_PROFILE_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
 ITERM_THEME_URL="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors"
 ITERM_THEME="$CONFIG_DIR/iterm2/Catppuccin Mocha.itermcolors"
@@ -300,8 +335,8 @@ chmod +x "$DOTFILES_DIR/config/iterm2/build-profile.py"
 if [[ -f "$ITERM_THEME" ]]; then
     echo "iTerm2 theme already present: $ITERM_THEME"
 else
-    echo "Downloading Catppuccin Mocha iTerm2 theme..."
-    curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
+    dotinstall_spin "Downloading iTerm2 Catppuccin theme…" \
+        curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
 fi
 
 if [[ -L "$ITERM_PROFILE_OUT" ]]; then
@@ -313,7 +348,8 @@ if [[ -f "$ITERM_PROFILE_OUT" ]] \
     && [[ "$ITERM_PROFILE_OUT" -nt "$ITERM_THEME" ]]; then
     echo "iTerm2 profile already built: $ITERM_PROFILE_OUT"
 else
-    python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
+    dotinstall_spin "Building iTerm2 profile…" \
+        python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
         "$ITERM_PROFILE_BASE" \
         "$ITERM_THEME" \
         "$ITERM_PROFILE_OUT"
@@ -330,9 +366,8 @@ defaults_write_if_needed com.googlecode.iterm2 TabStyleWithAutomaticOption 1
 
 # --- macOS Terminal.app (github-dark) ---
 
-echo "Configuring Terminal.app..."
 chmod +x "$DOTFILES_DIR/config/terminal/install.sh"
-if ! "$DOTFILES_DIR/config/terminal/install.sh"; then
+if ! dotinstall_spin "Configuring Terminal.app…" "$DOTFILES_DIR/config/terminal/install.sh"; then
     echo "Terminal.app profile import had failures; see manual.md" >&2
 fi
 
@@ -348,10 +383,10 @@ link_file "$DOTFILES_DIR/config/editor/keybindings.json" "$VSCODE_USER_DIR/keybi
 link_file "$DOTFILES_DIR/config/editor/keybindings.json" "$CURSOR_USER_DIR/keybindings.json"
 
 chmod +x "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
-"$DOTFILES_DIR/config/editor/install-catppuccin.sh"
+dotinstall_spin "Installing editor Catppuccin themes…" "$DOTFILES_DIR/config/editor/install-catppuccin.sh"
 
 chmod +x "$DOTFILES_DIR/config/idea/install-keymap.sh"
-if ! "$DOTFILES_DIR/config/idea/install-keymap.sh"; then
+if ! dotinstall_spin "Installing IntelliJ keymap…" "$DOTFILES_DIR/config/idea/install-keymap.sh"; then
     echo "IntelliJ keymap install had failures; continuing" >&2
 fi
 
@@ -371,13 +406,14 @@ rm -f "$CONFIG_DIR/git/preview" 2>/dev/null || true
 chmod +x "$CONFIG_DIR/git/gac" "$CONFIG_DIR/git/gpr" "$CONFIG_DIR/git/gclean" "$CONFIG_DIR/git/greview" "$CONFIG_DIR/git/setup-gpg" "$CONFIG_DIR/git/setup-delta"
 
 git config --global --unset include.path 2>/dev/null || true
+}
+
+dotinstall_spin "Applying dotfiles configuration…" dotinstall_apply_configuration
 
 # GPG commit signing (setup-gpg skips when signing key is already configured)
-echo "Setting up GPG commit signing..."
-"$DOTFILES_DIR/config/git/setup-gpg"
+dotinstall_spin "Setting up GPG commit signing…" "$DOTFILES_DIR/config/git/setup-gpg"
 
-echo "Setting up git delta pager..."
-"$DOTFILES_DIR/config/git/setup-delta"
+dotinstall_spin "Setting up git delta pager…" "$DOTFILES_DIR/config/git/setup-delta"
 
 install_oh_my_zsh() {
     local omz_dir="$HOME/.oh-my-zsh"
@@ -387,8 +423,8 @@ install_oh_my_zsh() {
         return 0
     fi
 
-    echo "Installing Oh My Zsh..."
-    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$omz_dir"
+    dotinstall_spin "Installing Oh My Zsh…" \
+        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$omz_dir"
     echo "Oh My Zsh installed."
 }
 
@@ -400,9 +436,9 @@ install_zsh_autosuggestions() {
         return 0
     fi
 
-    echo "Installing zsh-autosuggestions..."
     mkdir -p "$(dirname "$plugin_dir")"
-    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$plugin_dir"
+    dotinstall_spin "Installing zsh-autosuggestions…" \
+        git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$plugin_dir"
     echo "zsh-autosuggestions installed."
 }
 
@@ -414,9 +450,9 @@ install_fast_syntax_highlighting() {
         return 0
     fi
 
-    echo "Installing fast-syntax-highlighting..."
     mkdir -p "$(dirname "$plugin_dir")"
-    git clone --depth=1 https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$plugin_dir"
+    dotinstall_spin "Installing fast-syntax-highlighting…" \
+        git clone --depth=1 https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$plugin_dir"
     echo "fast-syntax-highlighting installed."
 }
 
@@ -1083,28 +1119,34 @@ EOF
 # Configure Zsh plugins and FZF
 SHELL_RC="$HOME/.zshrc"
 
-install_oh_my_zsh
-install_zsh_autosuggestions
-install_fast_syntax_highlighting
-ensure_oh_my_zsh_in_zshrc "$SHELL_RC"
-ensure_zsh_autosuggestions_plugin "$SHELL_RC"
-ensure_fast_syntax_highlighting_plugin "$SHELL_RC"
+dotinstall_finalize_zsh() {
+    emulate -L zsh
 
-# Homebrew's share dir is group-writable by default, which triggers the compinit
-# "Ignore insecure directories" prompt on every new shell.
-if command -v brew &>/dev/null; then
-    BREW_SHARE="$(brew --prefix)/share"
-    if [[ -d "$BREW_SHARE" ]]; then
-        brew_share_mode_before="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
-        chmod go-w "$BREW_SHARE"
-        brew_share_mode_after="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
-        if [[ "$brew_share_mode_before" != "$brew_share_mode_after" ]]; then
-            echo "Fixed zsh completion permissions on $BREW_SHARE"
-        else
-            echo "zsh completion permissions already OK on $BREW_SHARE"
+    install_oh_my_zsh
+    install_zsh_autosuggestions
+    install_fast_syntax_highlighting
+    ensure_oh_my_zsh_in_zshrc "$SHELL_RC"
+    ensure_zsh_autosuggestions_plugin "$SHELL_RC"
+    ensure_fast_syntax_highlighting_plugin "$SHELL_RC"
+
+    # Homebrew's share dir is group-writable by default, which triggers the compinit
+    # "Ignore insecure directories" prompt on every new shell.
+    if command -v brew &>/dev/null; then
+        BREW_SHARE="$(brew --prefix)/share"
+        if [[ -d "$BREW_SHARE" ]]; then
+            brew_share_mode_before="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
+            chmod go-w "$BREW_SHARE"
+            brew_share_mode_after="$(stat -f '%A' "$BREW_SHARE" 2>/dev/null || true)"
+            if [[ "$brew_share_mode_before" != "$brew_share_mode_after" ]]; then
+                echo "Fixed zsh completion permissions on $BREW_SHARE"
+            else
+                echo "zsh completion permissions already OK on $BREW_SHARE"
+            fi
         fi
     fi
-fi
+}
+
+dotinstall_spin "Configuring Zsh plugins…" dotinstall_finalize_zsh
 
 if [[ -f "$SHELL_RC" ]]; then
     # zsh-completions + compfix disable (must be before OMZ/compinit)

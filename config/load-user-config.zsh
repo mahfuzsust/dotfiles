@@ -5,7 +5,12 @@
 prompt_nonempty() {
     local var_name="$1" prompt_text="$2" value=""
     while true; do
-        read -r "value?${prompt_text}: " </dev/tty
+        if command -v gum >/dev/null 2>&1 && [[ -e /dev/tty ]]; then
+            value="$(gum input --prompt="${prompt_text}: " 2>/dev/null)" || value=""
+            stty sane 2>/dev/null || true
+        else
+            read -r "value?${prompt_text}: " </dev/tty
+        fi
         value="${value#"${value%%[![:space:]]*}"}"
         value="${value%"${value##*[![:space:]]}"}"
         if [[ -n "$value" ]]; then

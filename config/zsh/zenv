@@ -1,6 +1,16 @@
 # Universal zsh environment (sourced from ~/.zshenv for all zsh invocations).
 # Keep this file minimal — no slow init, no interactive-only bindings.
 
+# Non-login shells (fzf rg reload, scripts) skip ~/.zprofile; still need Homebrew tools.
+for _brew_bin in /opt/homebrew/bin /usr/local/bin; do
+  [[ -d "$_brew_bin" ]] || continue
+  case ":${PATH}:" in
+    *":${_brew_bin}:"*) ;;
+    *) PATH="${_brew_bin}:${PATH}" ;;
+  esac
+done
+unset _brew_bin
+
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/ripgreprc"
 
 # delta uses less internally; -R keeps colors, -F quit if one screen

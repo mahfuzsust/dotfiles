@@ -1,0 +1,2 @@
+# charmbracelet/gum — https://github.com/charmbracelet/gum
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/gum/gum.env" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/gum/gum.env"

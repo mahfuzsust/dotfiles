@@ -225,16 +225,16 @@ se() {
     return 1
   fi
 
-  command -v fzf >/dev/null 2>&1 || {
-    echo "se: fzf not found" >&2
-    return 1
-  }
-
   _search_pattern "$pattern" || return $?
 
   local target_abs="${target:A}"
   target_abs="${target_abs%/}"
   local preview_cmd="bat --style=numbers --color=always --highlight-line {2} ${(q)target_abs}/{1}"
+
+  command -v fzf >/dev/null 2>&1 || {
+    echo "se: fzf not found" >&2
+    return 1
+  }
 
   selected="$(
     _search_run_rg "$target" --line-number --no-heading --color=never 2>/dev/null \

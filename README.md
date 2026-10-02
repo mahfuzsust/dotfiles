@@ -76,7 +76,7 @@ Sign in or grant permissions as needed, for example:
 |---------|---------|
 | `git`, `gh`, `gh-stack` | Version control and GitHub CLI |
 | `neovim` | Default editor |
-| `fzf`, `fd`, `ripgrep` | Fuzzy finding and fast search |
+| `fzf`, `fd`, `ripgrep`, `gum` | Fuzzy finding, fast search, and shell prompts ([gum](https://github.com/charmbracelet/gum)) |
 | `bat`, `bat-extras`, `git-delta` | Pager, [bat-extras](https://github.com/eth-p/bat-extras), [delta](https://github.com/dandavison/delta) for git diffs |
 | `jq` | JSON processing |
 | `go`, `python`, `protobuf` | Languages and tooling |
@@ -175,7 +175,7 @@ gac
 What it does:
 
 1. `git add -A`
-2. Pick a type with **fzf** (or a numbered menu as fallback): `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+2. Pick a type with **fzf** (or numbered menu as fallback): `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `perf`, `ci`, `build`, `revert`; commit message via **gum input** (or `read`)
 3. Enter a commit message
 4. Trim trailing whitespace and a trailing `.`
 5. Commit with format: **`type(branch-name): message`**

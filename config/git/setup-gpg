@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+GUM_HELPERS="${XDG_CONFIG_HOME:-$HOME/.config}/gum/helpers.sh"
+[[ -f "$GUM_HELPERS" ]] && source "$GUM_HELPERS"
+
 gpg_secret_fingerprint() {
   local ref="$1"
   gpg --list-secret-keys --with-colons "$ref" 2>/dev/null \
@@ -158,7 +161,7 @@ main() {
 
   if [[ -t 0 ]]; then
     while [[ -z "$gpg_email" ]]; do
-      read -r -p "GPG email: " gpg_email </dev/tty
+      gpg_email="$(gum_prompt_input "GPG email" "$gpg_email")"
       gpg_email="${gpg_email%"${gpg_email##*[![:space:]]}"}"
       if [[ -z "$gpg_email" ]]; then
         echo "Email cannot be empty." >&2
@@ -177,7 +180,7 @@ main() {
     if [[ -t 0 ]]; then
       gpg_name=""
       while [[ -z "$gpg_name" ]]; do
-        read -r -p "GPG name: " gpg_name </dev/tty
+        gpg_name="$(gum_prompt_input "GPG name" "$gpg_name")"
         gpg_name="${gpg_name%"${gpg_name##*[![:space:]]}"}"
         if [[ -z "$gpg_name" ]]; then
           echo "Name cannot be empty." >&2

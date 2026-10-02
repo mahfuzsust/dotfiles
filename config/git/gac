@@ -25,21 +25,49 @@ pick_option() {
   shift
   local choice=""
 
-  if command -v fzf >/dev/null 2>&1 && [[ -t 0 ]]; then
-    choice="$(printf '%s\n' "$@" | fzf --prompt="${prompt} " --height=40% --border --reverse)"
+  if command -v fzf >/dev/null 2>&1; then
+    choice="$(printf '%s\n' "$@" | fzf --prompt="${prompt} " --height=40% --border --reverse)" || true
     restore_tty
   else
-    echo "Select ${prompt}:"
+    echo "Select ${prompt}:" >&2
     PS3="${prompt}> "
     select choice in "$@"; do
       if [[ -n "${choice:-}" ]]; then
         break
       fi
-      echo "Invalid selection, try again."
+      echo "Invalid selection, try again." >&2
     done
   fi
 
   printf '%s' "$choice"
+}
+
+prompt_message() {
+  local prompt="$1"
+  local default="${2:-}"
+  local value=""
+
+  restore_tty
+  if command -v gum >/dev/null 2>&1 && [[ -e /dev/tty ]]; then
+    if [[ -n "$default" ]]; then
+      value="$(gum input --prompt="${prompt} " --value "$default" 2>/dev/null)" || true
+    else
+      value="$(gum input --prompt="${prompt} " 2>/dev/null)" || true
+    fi
+    restore_tty
+    if [[ -n "$value" ]]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  fi
+
+  if [[ -n "$default" ]]; then
+    read -e -r -p "${prompt} [${default}]: " value </dev/tty
+    value="${value:-$default}"
+  else
+    read -e -r -p "${prompt}: " value </dev/tty
+  fi
+  printf '%s' "$value"
 }
 
 action="$(pick_option "Commit type" "${types[@]}")"
@@ -70,13 +98,7 @@ if [[ "$action" == amend ]]; then
   fi
 fi
 
-restore_tty
-if [[ -n "$default_message" ]]; then
-  read -e -r -p "Commit message [${default_message}]: " message </dev/tty
-  message="${message:-$default_message}"
-else
-  read -e -r -p "Commit message: " message </dev/tty
-fi
+message="$(prompt_message "Commit message" "$default_message")"
 
 message="${message%"${message##*[![:space:]]}"}"
 message="${message%.}"
