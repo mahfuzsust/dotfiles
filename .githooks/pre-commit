@@ -1,0 +1,3 @@
+#!/bin/sh
+# Enabled by dotinstall (git config core.hooksPath .githooks). Bypass once with: git commit --no-verify
+exec "$(git rev-parse --show-toplevel)/scripts/check.sh"

@@ -34,6 +34,7 @@ _git_push_after_rebase() {
   fi
 }
 
+# @help gpp, gppr, grr, gn, grb | git helpers (see config/shell/git); gac/gpr/gprm/gclean/greview are aliases
 gpp() {
   git push "$@"
 }

@@ -1,0 +1,3 @@
+# ripgrep — noglob so zsh does not expand -g/--glob values (e.g. -g 'REA*') before rg runs.
+alias rg='noglob command rg'
+[[ -o interactive ]] && setopt aliases 2>/dev/null

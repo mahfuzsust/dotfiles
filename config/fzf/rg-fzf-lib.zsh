@@ -1,6 +1,12 @@
 # Shared live ripgrep helpers for fzf (sourced by config/shell/s and rg-fzf-reload.zsh).
 
+_fzf_rg_config_path() {
+  print -r -- "${RIPGREP_CONFIG_PATH:-${DOTFILES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}/ripgrep/ripgreprc}"
+}
+
 _fzf_rg_bin() {
+  emulate -L zsh
+  setopt localoptions no_aliases
   local candidate=""
 
   if [[ -n "${_FZF_RG_BIN:-}" && -x "${_FZF_RG_BIN}" ]]; then
@@ -8,7 +14,7 @@ _fzf_rg_bin() {
     return 0
   fi
 
-  candidate="$(command -v rg 2>/dev/null)" || true
+  candidate="$(whence -p rg 2>/dev/null)" || true
   if [[ -n "$candidate" && -x "$candidate" ]]; then
     typeset -g _FZF_RG_BIN="$candidate"
     print -r -- "$_FZF_RG_BIN"
@@ -35,33 +41,22 @@ _fzf_rg_bin() {
   return 1
 }
 
-_fzf_rg_emit_relative_lines() {
-  while IFS= read -r line; do
-    [[ -n "$line" ]] || continue
-    if [[ "$line" == ./* ]]; then
-      line="${line#./}"
-    fi
-    print -r -- "$line"
-  done
+# fzf reload-sync: {q} arrives as ONE quoted arg; the reloader word-splits it. noglob avoids expanding REA*.
+_fzf_rg_reload_command() {
+  local target_abs="$1"
+  local reloader="${DOTFILES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}/fzf/rg-fzf-reload.zsh"
+
+  _fzf_rg_bin >/dev/null || return 1
+  [[ -f "$reloader" ]] || return 1
+
+  print -rn -- "noglob zsh -f ${(q)reloader} ${(q)target_abs} {q} || true"
 }
 
-# query: shell words passed to rg (e.g. -i -t md TODO).
-_fzf_rg_fzf_source() {
-  local query="$1" target="${2:-.}"
-  local target_abs="${target:A}"
-
-  [[ -n "$query" ]] || return 0
-  [[ -e "$target" ]] || return 0
-
-  local rg_bin=""
-  rg_bin="$(_fzf_rg_bin)" || return 1
-
-  (
-    cd "${target_abs}" || exit 0
-    export RIPGREP_CONFIG_PATH="${RIPGREP_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME}/.config/ripgrep/ripgreprc}"
-    local -a rg_argv
-    rg_argv=("${(@Q)${(z)query}}")
-    (( ${#rg_argv[@]} )) || return 0
-    "$rg_bin" "${rg_argv[@]}" --line-number --no-heading --color=never -- .
-  ) | _fzf_rg_emit_relative_lines
+# True while rg would just error and blank the list (empty query, or a flag still waiting for its value).
+_fzf_rg_query_incomplete() {
+  (( $# )) || return 0
+  case "${@[-1]}" in
+    -g|--glob|-t|--type|-T|--type-not|-e|--regexp|-f|--file|-m|--max-count|-A|-B|-C|--iglob) return 0 ;;
+  esac
+  return 1
 }

@@ -1,0 +1,14 @@
+# dothelp — list dotfiles commands and keybindings, collected from `# @help <name> | <description>` comments.
+# Add a comment above any function/binding and it shows up here (after dotinstall links it).
+# @help dothelp | this list
+dothelp() {
+  local cfg="${DOTFILES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}"
+  local -a files=("$cfg"/shell/*(N-.) "$cfg"/zsh/zshrc(N-.))
+
+  (( ${#files} )) || { echo "dothelp: nothing found in $cfg (run dotinstall)" >&2; return 1; }
+
+  command grep -h '^# @help ' "${files[@]}" \
+    | sed 's/^# @help //' \
+    | sort -f \
+    | awk -F' \\| ' '{ printf "  %-56s %s\n", $1, $2 }'
+}

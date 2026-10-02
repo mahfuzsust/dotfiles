@@ -37,6 +37,7 @@ _stup_section() {
   _stup_sections_printed=1
 }
 
+# @help stup | task standup helper
 stup() {
   command -v tk >/dev/null 2>&1 || {
     echo "stup: taskwarrior not found (tk)" >&2

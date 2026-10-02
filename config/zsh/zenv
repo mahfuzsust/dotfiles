@@ -11,7 +11,9 @@ for _brew_bin in /opt/homebrew/bin /usr/local/bin; do
 done
 unset _brew_bin
 
-export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/ripgreprc"
+# Single source of truth for where dotfiles are linked (XDG-aware).
+export DOTFILES_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
+export RIPGREP_CONFIG_PATH="$DOTFILES_CONFIG/ripgrep/ripgreprc"
 
 # delta uses less internally; -R keeps colors, -F quit if one screen
 if [[ -z "${DELTA_PAGER:-}" ]] && command -v less >/dev/null 2>&1; then

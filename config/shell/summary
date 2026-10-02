@@ -182,6 +182,7 @@ _summary_task() {
     "$@"
 }
 
+# @help summary week|month|quarter|year [last|current] [-tags ..] | completed taskwarrior tasks
 summary() {
   local period="" when=last when_explicit=0 tag_filter=""
   local start="" end="" start_exclusive="" end_exclusive="" output="" title=""

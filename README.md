@@ -31,7 +31,7 @@ Open a **new terminal tab** when it finishes (or run `source ~/.zshrc`).
 
 - macOS
 - [Zsh](https://www.zsh.org/) as your default shell (macOS default)
-- A `~/.zshrc` file — [Oh My Zsh](https://ohmyz.sh/) is supported; the installer patches it automatically
+- A `~/.zshrc` file — [Oh My Zsh](https://ohmyz.sh/) is installed and configured by the managed `config/zsh/zshrc`
 
 ---
 
@@ -335,24 +335,30 @@ Optional editor comes first, then the same patterns as `s`. fzf uses bat preview
 
 ### Zsh startup (`config/zsh/`)
 
+`~/.zshrc` gets **one** dotfiles block (`source ~/.config/zsh/zshrc`). Everything dotfiles owns lives in tracked files — edit them and the change applies to new shells; `dotinstall` only links.
+
 | File | Loaded from | Purpose |
 |------|-------------|---------|
-| `zenv` | `~/.zshenv` (dotfiles block) | Universal env for every zsh (e.g. `RIPGREP_CONFIG_PATH`) |
+| `zshrc` | `~/.zshrc` (single block) | Ordered interactive setup: completions, Oh My Zsh + plugins, fzf, zoxide, lazy nvm, kubectl completion, aliases |
+| `zenv` | `~/.zshenv` (dotfiles block) | Universal env for every zsh (`DOTFILES_CONFIG`, `RIPGREP_CONFIG_PATH`, …) |
 | `zprofile` | `~/.zprofile` (dotfiles block) | Login shell: `brew shellenv`, `~/.local/bin` on `PATH` |
-| `zoxide.env` | `~/.zshrc` DOTFILES SETUP | `eval "$(zoxide init zsh)"` when `zoxide` is installed |
+| `zoxide.env` | `zshrc` | `eval "$(zoxide init zsh)"` when `zoxide` is installed |
+| `lazy-nvm.zsh` | `zshrc` | `nvm`/`node`/`npm`/`npx`/`corepack` stubs that load `nvm.sh` on first use (saves ~0.8s per shell) |
+| `kubectl-completion.zsh` | `zshrc` | kubectl completion cached in `~/.cache/zsh/`, refreshed when the kubectl binary changes |
 
-`install.sh` prepends managed blocks to `~/.zshenv` and `~/.zprofile` without replacing Docker, `sc-tools`, or other existing lines. Duplicate standalone `brew shellenv` lines in `~/.zprofile` are removed once the dotfiles block is present.
+Optional, untracked hooks: `~/.config/zsh/pre-omz.zsh` (override `ZSH_THEME` / `plugins=(…)` before Oh My Zsh) and `~/.config/zsh/local.zsh` (machine-specific lines, runs last). Your own lines in `~/.zshrc` (PATH tweaks, secrets, aliases) are left alone.
 
-Interactive tooling (`fzf.env`, `zoxide.env`, Oh My Zsh, aliases) stays in `~/.zshrc`.
+**Migration:** on the first `dotinstall` after upgrading, the old patched blocks (`DOTFILES SETUP`, `ALIASES`, `KUBECTL COMPLETION`, the Oh My Zsh lines, the eager nvm lines) are removed from `~/.zshrc`, and a backup is written to `~/.zshrc.pre-managed.bak`. Custom OMZ theme/plugins are reported so you can move them to `pre-omz.zsh`.
 
-### Zsh plugins (via `install.sh`)
+`install.sh` also prepends managed blocks to `~/.zshenv` and `~/.zprofile` without replacing Docker, `sc-tools`, or other existing lines.
 
-Wired into `~/.zshrc`:
+**Startup time:** run `dotprof` for a zprof report. A fresh interactive shell takes ~0.3s (was ~1.3s with eager nvm and `kubectl completion` forked on every start).
 
-- Homebrew `zsh-completions` on `FPATH`
-- `ZSH_DISABLE_COMPFIX=true` plus a permission fix on `$(brew --prefix)/share` to stop the compinit *"Ignore insecure directories"* prompt
-- `source <(kubectl completion zsh)` for kubectl tab completion
-- `zsh-autosuggestions` and `fast-syntax-highlighting` (Oh My Zsh `plugins=(…)`; highlighting loaded with OMZ)
+`zshrc` also sets `ZSH_DISABLE_COMPFIX=true`, puts Homebrew `zsh-completions` on `FPATH`, and `install.sh` fixes permissions on `$(brew --prefix)/share` to stop the compinit *"Ignore insecure directories"* prompt.
+
+### Installer layout
+
+`install.sh` is the ordered runner; function libraries live in `install/lib/` (`ui.sh` spinner, `ssh.sh`, `configure.sh` linking + defaults, `zsh.sh` Oh My Zsh + managed `~/.zshrc`). Run `scripts/check.sh` to syntax-check every shell file, run shellcheck on the bash scripts, and run `tests/`. Run `dothelp` to list commands and keybindings; add `# @help <name> | <description>` above anything new and it appears there.
 
 ---
 
@@ -373,6 +379,8 @@ Based on [radleylewis/zsh `fzf.zsh`](https://github.com/radleylewis/zsh/blob/mai
 - Searches hidden files
 - Honors `.gitignore` (including outside a git repo via `--no-require-git`)
 - Skips `.git/` contents
+- Zsh **`rg`** wrapper (`config/shell/rg`) uses **`noglob`** so patterns like `-g 'REA*'` reach ripgrep unchanged
+- **Ctrl+F** / **Ctrl+N**: the search box is split into words and passed **verbatim** to **`rg`** (plus `--line-number --no-heading --color=never` for fzf display only). Example: `-g REA* gum`
 
 ### bat-extras (Homebrew `bat-extras`)
 

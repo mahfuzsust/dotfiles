@@ -101,7 +101,7 @@ _search_run_rg() {
   local target="$1"
   shift
 
-  export RIPGREP_CONFIG_PATH="${RIPGREP_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/ripgrep/ripgreprc}"
+  export RIPGREP_CONFIG_PATH="${RIPGREP_CONFIG_PATH:-${DOTFILES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}/ripgrep/ripgreprc}"
 
   if (( _SEARCH_FIXED )); then
     command rg --fixed-strings -e "$_SEARCH_REGEX" "$@" "$target"
@@ -110,6 +110,7 @@ _search_run_rg() {
   fi
 }
 
+# @help s <pattern> [path] | ripgrep search; *abc = ends with, abc* = starts with
 s() {
   local pattern="${1:-}" target="${2:-.}"
 
@@ -157,33 +158,18 @@ _searche_resolve_editor() {
   esac
 }
 
-_searche_open() {
-  local editor="$1" entry="$2" file="" line="" rest=""
-
-  file="${entry%%:*}"
-  rest="${entry#*:}"
-  line="${rest%%:*}"
+# file:line → editor at that line (used by se and the Ctrl+F/Ctrl+N widgets).
+_open_at_line() {
+  local editor="$1" file="$2" line="$3"
   [[ "$line" =~ '^[0-9]+$' ]] || line=1
 
   case "$editor" in
-    cursor)
-      if command -v cursor >/dev/null 2>&1; then
-        cursor -g "$file:$line" 2>/dev/null || cursor "$file:$line"
-      else
-        echo "se: cursor not found" >&2
+    cursor|code)
+      if ! command -v "$editor" >/dev/null 2>&1; then
+        echo "open: $editor not found" >&2
         return 1
       fi
-      ;;
-    code)
-      if command -v code >/dev/null 2>&1; then
-        code -g "$file:$line"
-      else
-        echo "se: code not found (install VS Code shell command)" >&2
-        return 1
-      fi
-      ;;
-    nvim)
-      command nvim "+$line" "$file"
+      command "$editor" -g "$file:$line"
       ;;
     *)
       command "$editor" "+$line" "$file"
@@ -191,6 +177,7 @@ _searche_open() {
   esac
 }
 
+# @help se [editor] <pattern> [path] | pick a match in fzf, open at the line (nvim/vim/cursor/code)
 se() {
   local editor="nvim" pattern="" target="."
   local -a known_editors=(vi vim nvim cursor code)
@@ -245,193 +232,6 @@ se() {
   )"
   [[ -n "$selected" ]] || return 0
 
-  _searche_open "$editor" "$selected"
+  local rest="${selected#*:}"
+  _open_at_line "$editor" "${selected%%:*}" "${rest%%:*}"
 }
-
-_FZF_RG_LIB="${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-lib.zsh"
-[[ -f "$_FZF_RG_LIB" ]] && source "$_FZF_RG_LIB"
-unset _FZF_RG_LIB
-
-_fzf_rg_resolve_entry() {
-  local target="$1" entry="$2" file=""
-
-  file="${entry%%:*}"
-  [[ "$file" == /* ]] && print -r -- "$entry" && return 0
-  print -r -- "${target%/}/${entry}"
-}
-
-_fzf_rg_zle_restore() {
-  emulate -L zsh
-  stty sane 2>/dev/null
-  zle -I 2>/dev/null
-  zle reset-prompt 2>/dev/null
-  zle -R 2>/dev/null
-}
-
-_fzf_rg_open_match() {
-  local target_abs="$1" selected="$2" entry="" file="" line="" rest=""
-
-  entry="$(_fzf_rg_resolve_entry "$target_abs" "$selected")"
-  file="${entry%%:*}"
-  rest="${entry#*:}"
-  line="${rest%%:*}"
-  [[ "$line" =~ '^[0-9]+$' ]] || line=1
-
-  {
-    command nvim "+$line" "$file" < /dev/tty > /dev/tty 2>&1
-  } always {
-    stty sane 2>/dev/null
-  }
-}
-
-# Same fzf UI for Ctrl+F and Ctrl+N (uses fzf.env layout; bat preview scrolls to match line).
-_fzf_rg_pick() {
-  local prompt="$1" preview_cmd="$2" reload_bind="$3"
-  setopt localoptions pipefail no_aliases 2>/dev/null
-
-  local rg_bind="change:reload-sync:${reload_bind}"
-  local rg_extra="
-    --disabled
-    --delimiter :
-    --nth 3..
-    --prompt=${(q)prompt}
-    --preview ${(q)preview_cmd}
-    --preview-window right:65%:wrap:border-left,+{2}+3/3,~3
-    --bind ${(q)rg_bind}
-  "
-
-  local stty_saved=""
-  [[ -t 0 ]] && stty_saved="$(stty -g 2>/dev/null)"
-
-  if (( $+functions[__fzf_defaults] && $+functions[__fzfcmd] )); then
-    FZF_DEFAULT_COMMAND=:
-    FZF_DEFAULT_OPTS="$(
-      __fzf_defaults \
-        "--height=60% --layout=reverse --border=rounded --prompt='  ' --pointer='  '" \
-        "${rg_extra}"
-    )"
-    FZF_DEFAULT_OPTS_FILE=''
-    $(__fzfcmd) < /dev/tty
-  else
-    FZF_DEFAULT_OPTS_FILE=''
-    FZF_DEFAULT_OPTS='--height=60% --layout=reverse --border=rounded --preview-window=right:65%:wrap:border-left'
-    command fzf --disabled \
-      --delimiter : \
-      --nth 3.. \
-      --prompt="$prompt" \
-      --preview "$preview_cmd" \
-      --preview-window 'right:65%:wrap:border-left,+{2}+3/3,~3' \
-      --bind "change:reload-sync:${reload_bind}" \
-      < /dev/tty
-  fi
-  local ret=$?
-  if [[ -n "$stty_saved" ]]; then
-    stty "$stty_saved" 2>/dev/null
-  fi
-  stty sane 2>/dev/null
-  return $ret
-}
-
-_fzf_rg_live_widget() {
-  emulate -L zsh
-  setopt localoptions pipefail no_aliases 2>/dev/null
-
-  local target="$1" prompt="$2"
-  local target_abs="${target:A}" reloader="" preview_cmd="" reload_bind="" selected=""
-
-  reloader="${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-reload.zsh"
-  if ! command -v fzf >/dev/null 2>&1; then
-    zle -M "fzf not found"
-    return 1
-  fi
-  if ! command -v rg >/dev/null 2>&1; then
-    zle -M "rg not found"
-    return 1
-  fi
-  if [[ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/rg-fzf-lib.zsh" ]]; then
-    zle -M "missing rg-fzf-lib.zsh (run dotinstall)"
-    return 1
-  fi
-  if [[ ! -x "$reloader" ]]; then
-    zle -M "missing $reloader (run dotinstall)"
-    return 1
-  fi
-  if [[ ! -e "$target" ]]; then
-    zle -M "path not found: $target"
-    return 1
-  fi
-
-  target_abs="${target_abs%/}"
-  reload_bind="FZF_RG_TARGET=${(q)target_abs} ${(q)reloader}"
-  preview_cmd="bat --style=numbers --color=always --highlight-line {2} ${(q)target_abs}/{1}"
-
-  zle -I
-  selected="$(_fzf_rg_pick "$prompt" "$preview_cmd" "$reload_bind")"
-  _fzf_rg_zle_restore
-
-  [[ -n "$selected" ]] || return 0
-  _fzf_rg_open_match "$target_abs" "$selected"
-  _fzf_rg_zle_restore
-  return 0
-}
-
-_fzf_rg_content_widget() {
-  emulate -L zsh
-  (( ${+_DOTFILES_FZF_RG_ACTIVE} )) && return 0
-  typeset -g _DOTFILES_FZF_RG_ACTIVE=1
-
-  {
-    _fzf_rg_live_widget "${PWD:A}" 'Rg> '
-  } always {
-    unset _DOTFILES_FZF_RG_ACTIVE
-    _fzf_rg_zle_restore
-  }
-}
-
-_fzf_rg_notes_widget() {
-  emulate -L zsh
-  (( ${+_DOTFILES_FZF_RG_ACTIVE} )) && return 0
-  typeset -g _DOTFILES_FZF_RG_ACTIVE=1
-
-  {
-    local dir="${NOTES_DIR:-}"
-
-    if [[ -z "$dir" ]]; then
-      zle -M "NOTES_DIR not set (run dotinstall after user-config.yml notes.directory)"
-      return 1
-    fi
-
-    _fzf_rg_live_widget "${dir:A}" 'Notes> '
-  } always {
-    unset _DOTFILES_FZF_RG_ACTIVE
-    _fzf_rg_zle_restore
-  }
-}
-
-_dotfiles_s_bind_fzf_rg_keymaps() {
-  local km
-  for km in emacs viins vicmd; do
-    bindkey -M "$km" '^F' _fzf_rg_content_widget
-    bindkey -M "$km" '^N' _fzf_rg_notes_widget
-  done
-}
-
-_dotfiles_s_register_fzf_rg_widgets() {
-  (( ${+_DOTFILES_S_FZF_ZLE_BOUND} )) && return 0
-  [[ -o zle ]] || return 1
-
-  zle -N _fzf_rg_content_widget || return 1
-  zle -N _fzf_rg_notes_widget || return 1
-  _dotfiles_s_bind_fzf_rg_keymaps
-  typeset -g _DOTFILES_S_FZF_ZLE_BOUND=1
-}
-
-if [[ -n "$ZSH_VERSION" && -o interactive ]]; then
-  if ! _dotfiles_s_register_fzf_rg_widgets; then
-    autoload -Uz add-zsh-hook
-    _dotfiles_s_precmd_bind_fzf_rg() {
-      _dotfiles_s_register_fzf_rg_widgets && add-zsh-hook -d precmd _dotfiles_s_precmd_bind_fzf_rg
-    }
-    add-zsh-hook precmd _dotfiles_s_precmd_bind_fzf_rg
-  fi
-fi

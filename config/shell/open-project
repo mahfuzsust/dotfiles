@@ -148,4 +148,5 @@ fzf-open-project-widget() {
 }
 
 zle -N fzf-open-project-widget
+# @help Alt+D | pick a project dir with fzf, then an editor
 bindkey "∂" fzf-open-project-widget

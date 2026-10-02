@@ -1,4 +1,5 @@
 # Run dotfiles installer (reloads shell config in the current session)
+# @help dotinstall | re-apply dotfiles and reload the shell
 dotinstall() {
   DOTFILES_INSTALL_FROM_DOTINSTALL=1 "$HOME/dotfiles/install.sh" "$@" || return $?
   set +e
