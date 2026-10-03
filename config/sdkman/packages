@@ -1,0 +1,7 @@
+# SDKMAN! packages — one `sdk` command per line (see https://sdkman.io/usage).
+# Order matters: install Java before JVM tools (e.g. sbt). Re-run dotinstall for new lines.
+sdk install java
+sdk install sbt
+sdk install scala
+sdk install gradle
+sdk install maven

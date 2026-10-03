@@ -12,6 +12,14 @@ dotprof() { DOTFILES_ZPROF=1 zsh -i -c zprof; }
 
 _dotfiles_cfg="${DOTFILES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}"
 
+# Oh My Zsh + zsh-autosuggestions must load once per shell; re-sourcing ~/.zshrc stacks
+# reset-prompt wrappers and hits "maximum nested function level reached".
+if [[ -n "${DOTFILES_ZSHRC_LOADED:-}" ]]; then
+  unset _dotfiles_cfg
+  return 0
+fi
+typeset -g DOTFILES_ZSHRC_LOADED=1
+
 # --- completions (must be before Oh My Zsh runs compinit) ---
 export ZSH_DISABLE_COMPFIX=true
 [[ -d "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-completions" ]] \
@@ -32,10 +40,13 @@ prompt typewritten
 typeset -U path  # no duplicate PATH entries
 # Go binaries (no `go env` fork; GOPATH defaults to ~/go)
 [[ -d "${GOPATH:-$HOME/go}/bin" ]] && path+=("${GOPATH:-$HOME/go}/bin")
-export GPG_TTY=$(tty)
+if [[ -t 0 ]]; then
+  export GPG_TTY="$(tty)"
+fi
 source "$_dotfiles_cfg/fzf/fzf.env"
 source "$_dotfiles_cfg/zsh/zoxide.env"
 source "$_dotfiles_cfg/zsh/lazy-nvm.zsh"
+source "$_dotfiles_cfg/zsh/sdkman.env"
 source "$_dotfiles_cfg/zsh/kubectl-completion.zsh"
 
 # --- aliases: after Oh My Zsh (its git plugin defines gpr = pull --rebase) ---

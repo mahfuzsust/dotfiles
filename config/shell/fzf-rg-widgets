@@ -17,7 +17,7 @@ _fzf_rg_zle_restore() {
   emulate -L zsh
   stty sane 2>/dev/null
   zle -I 2>/dev/null
-  zle reset-prompt 2>/dev/null
+  zle .reset-prompt 2>/dev/null
   zle -R 2>/dev/null
 }
 

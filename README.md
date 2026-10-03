@@ -81,6 +81,7 @@ Sign in or grant permissions as needed, for example:
 | `jq` | JSON processing |
 | `go`, `python`, `protobuf` | Languages and tooling |
 | `asdf`, `nvm` | Runtime version managers |
+| [SDKMAN!](https://sdkman.io/install/) | JVM/Scala tooling via `config/sdkman/packages` (not Homebrew) |
 | `awscli`, `gcloud-cli` (cask) | Cloud CLIs |
 | `terraform` (HashiCorp tap) | Infrastructure as code |
 | `mongosh` | MongoDB shell |
@@ -98,6 +99,17 @@ Sign in or grant permissions as needed, for example:
 Bitwarden, Cursor, iTerm2, IntelliJ IDEA, Notion, VS Code, Fira Code font, and others.
 
 To add a package, edit `Brewfile` and re-run `./install.sh`.
+
+### SDKMAN! (`config/sdkman/packages`)
+
+[SDKMAN!](https://sdkman.io/install/) is installed on first `dotinstall` (`rcupdate=false`; shell init lives in `config/zsh/sdkman.env`). Add one command per line in **`config/sdkman/packages`**, for example:
+
+```text
+sdk install java
+sdk install sbt
+```
+
+Install **Java before** tools like sbt. Re-run `dotinstall` to apply new lines. `sbt` is no longer installed via Homebrew.
 
 ---
 

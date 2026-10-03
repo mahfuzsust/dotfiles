@@ -144,7 +144,7 @@ fzf-open-project-widget() {
   fi
 
   _open_project_open "$editor" "$dir"
-  zle reset-prompt
+  zle .reset-prompt
 }
 
 zle -N fzf-open-project-widget

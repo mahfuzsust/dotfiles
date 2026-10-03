@@ -22,7 +22,6 @@ brew "gnupg" # Gnupg is a command-line tool for managing GPG keys
 tap "hashicorp/tap" # Hashicorp/tap is a tap for Hashicorp tools
 brew "terraform", tap: "hashicorp/tap" # Terraform is a tool for managing infrastructure as code
 brew "mongosh" # Mongosh is a command-line tool for managing MongoDB
-brew "sbt" # Sbt is a build tool for Scala
 brew "minikube" # Minikube is a tool for running Kubernetes locally
 brew "kubectl" # Kubectl is a command-line tool for managing Kubernetes clusters
 brew "tree" # Tree is a command-line tool for displaying directories as a tree

@@ -155,6 +155,7 @@ Desktop.ini
 .gem
 .sc-tools
 .nvm
+.sdkman
 Library/
 .cursor
 virtualenv

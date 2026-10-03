@@ -5,11 +5,16 @@ dotinstall() {
   set +e
   DOTFILES_INSTALL_FROM_DOTINSTALL=1 "$HOME/dotfiles/install.sh" "$@"
   local ret=$?
-  [[ -f "$HOME/.zshrc" ]] && source "$HOME/.zshrc" 2>/dev/null
+  # Reload shell modules only (do not re-source ~/.zshrc — breaks autosuggest).
+  if [[ -f "$HOME/.config/shell/load" ]]; then
+    source "$HOME/.config/shell/load" 2>/dev/null
+  elif [[ -f "$HOME/.config/shell/aliases" ]]; then
+    source "$HOME/.config/shell/aliases" 2>/dev/null
+  fi
   if (( ret )); then
     echo "dotinstall: install.sh exited with status $ret" >&2
     return "$ret"
   fi
-  echo "Shell configuration reloaded"
+  echo "Shell modules reloaded (open a new tab for full zshrc changes)"
   return 0
 }
