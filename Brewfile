@@ -35,6 +35,7 @@ brew "git-delta" # delta — syntax-highlighting pager for git/diff (https://git
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
 brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions
+brew "typewritten" # Typewritten is oh-my-zsh theme for Zsh
 
 cask "bitwarden" # Bitwarden is a password manager
 cask "visual-studio-code" # Visual Studio Code is a code editor

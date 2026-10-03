@@ -8,8 +8,15 @@ BIN="$HOME/.local/bin/claude-sessions"
 
 mkdir -p "$HOME/.local/bin"
 
+if [[ -f "$SCRIPT" ]]; then
+  chmod +x "$SCRIPT"
+  ln -sfn "$SCRIPT" "$BIN"
+  echo "claude-sessions already installed: $BIN"
+  exit 0
+fi
+
 if [[ -d "$REPO_DIR/.git" ]]; then
-  git -C "$REPO_DIR" fetch --depth=1 origin 2>/dev/null || true
+  echo "claude-sessions: repo at $REPO_DIR but script missing; updating…" >&2
   git -C "$REPO_DIR" pull --ff-only 2>/dev/null || true
 else
   git clone --depth=1 "$REPO_URL" "$REPO_DIR"
@@ -22,3 +29,4 @@ fi
 
 chmod +x "$SCRIPT"
 ln -sfn "$SCRIPT" "$BIN"
+echo "Installed: $BIN"

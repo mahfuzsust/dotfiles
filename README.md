@@ -423,6 +423,8 @@ iTerm2 starts or attaches session `main` via `~/.config/iterm2/tmux-start.zsh`.
 
 Click a pane or status-bar tab to switch. After changing config, run `dotinstall` or `Ctrl+b r`. If needed: `tmux kill-server` then open a new iTerm tab.
 
+Detaching tmux (`Ctrl+b d`) or closing the last tmux window returns you to a normal zsh prompt in iTerm (the profile no longer `exec`s into tmux only).
+
 ---
 
 ## iTerm2

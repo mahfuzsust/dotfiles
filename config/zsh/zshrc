@@ -19,10 +19,14 @@ export ZSH_DISABLE_COMPFIX=true
 
 # --- Oh My Zsh ---
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
+ZSH_THEME=""
 plugins=(git zsh-autosuggestions fast-syntax-highlighting)
 [[ -f "$_dotfiles_cfg/zsh/pre-omz.zsh" ]] && source "$_dotfiles_cfg/zsh/pre-omz.zsh"
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
+
+autoload -U promptinit
+promptinit
+prompt typewritten
 
 # --- tools ---
 typeset -U path  # no duplicate PATH entries
