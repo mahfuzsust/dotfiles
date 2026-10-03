@@ -14,7 +14,7 @@ for f in install.sh install/lib/*.sh config/shell/*(.) config/zsh/*(.) config/fz
 done
 
 bash_files=()
-for f in config/git/*(.) config/gum/helpers.sh config/*/install*.sh(N); do
+for f in config/git/*(.) config/shell/interactive-helpers.sh config/*/install*.sh(N); do
   [[ "$(head -1 "$f")" == *bash* ]] || continue
   bash -n "$f" 2>/dev/null || bad "bash -n $f"
   bash_files+=("$f")

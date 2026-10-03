@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GUM_HELPERS="${XDG_CONFIG_HOME:-$HOME/.config}/gum/helpers.sh"
-[[ -f "$GUM_HELPERS" ]] && source "$GUM_HELPERS"
+_setup_gpg_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_interactive="${XDG_CONFIG_HOME:-$HOME/.config}/shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || _interactive="${_setup_gpg_dir}/../shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || { echo "setup-gpg: interactive helpers not found; run dotinstall" >&2; exit 1; }
+# shellcheck source=/dev/null
+source "$_interactive"
 
 gpg_secret_fingerprint() {
   local ref="$1"
@@ -161,7 +165,7 @@ main() {
 
   if [[ -t 0 ]]; then
     while [[ -z "$gpg_email" ]]; do
-      gpg_email="$(gum_prompt_input "GPG email" "$gpg_email")"
+      gpg_email="$(prompt_input "GPG email" "$gpg_email")"
       gpg_email="${gpg_email%"${gpg_email##*[![:space:]]}"}"
       if [[ -z "$gpg_email" ]]; then
         echo "Email cannot be empty." >&2
@@ -180,7 +184,7 @@ main() {
     if [[ -t 0 ]]; then
       gpg_name=""
       while [[ -z "$gpg_name" ]]; do
-        gpg_name="$(gum_prompt_input "GPG name" "$gpg_name")"
+        gpg_name="$(prompt_input "GPG name" "$gpg_name")"
         gpg_name="${gpg_name%"${gpg_name##*[![:space:]]}"}"
         if [[ -z "$gpg_name" ]]; then
           echo "Name cannot be empty." >&2

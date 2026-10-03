@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GUM_HELPERS="${XDG_CONFIG_HOME:-$HOME/.config}/gum/helpers.sh"
-[[ -f "$GUM_HELPERS" ]] && source "$GUM_HELPERS"
+_gpr_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_interactive="${XDG_CONFIG_HOME:-$HOME/.config}/shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || _interactive="${_gpr_dir}/../shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || { echo "gpr: interactive helpers not found; run dotinstall" >&2; exit 1; }
+# shellcheck source=/dev/null
+source "$_interactive"
 
 _GPR_BODY_FILE=""
 
@@ -87,7 +91,7 @@ select_base_branch() {
   fi
 
   selected="$(
-    printf '%s\n' "${branches[@]}" | gum_pick_stdin "PR base branch"
+    printf '%s\n' "${branches[@]}" | pick_stdin "PR base branch"
   )"
 
   if [[ -z "$selected" ]]; then
@@ -155,12 +159,12 @@ prompt_title() {
   local result=""
 
   if [[ -n "$default_title" ]]; then
-    input="$(gum_prompt_input "PR title" "$default_title")"
+    input="$(prompt_input "PR title" "$default_title")"
     result="${input:-$default_title}"
   else
     result=""
     while [[ -z "$result" ]]; do
-      input="$(gum_prompt_input "PR title")"
+      input="$(prompt_input "PR title")"
       result="${input%"${input##*[![:space:]]}"}"
       if [[ -z "$result" ]]; then
         echo "Title cannot be empty." >&2
@@ -173,7 +177,7 @@ prompt_title() {
 }
 
 edit_description() {
-  local template_file editor body=""
+  local template_file editor=""
   template_file="$(mktemp "${TMPDIR:-/tmp}/gpr-body.XXXXXX")"
 
   cat >"$template_file" <<'EOF'
@@ -181,12 +185,6 @@ edit_description() {
 
 
 EOF
-
-  if body="$(gum_prompt_write "PR description (ctrl+d when done)" "$template_file")"; then
-    printf '%s\n' "$body" >"$template_file"
-    _GPR_RESULT="$template_file"
-    return 0
-  fi
 
   editor="${GIT_PR_EDITOR:-${EDITOR:-nvim}}"
   if ! "$editor" "$template_file" </dev/tty >/dev/tty 2>&1; then
@@ -201,7 +199,7 @@ EOF
 prompt_pr_state() {
   local choice=""
 
-  choice="$(gum_pick "PR state" ready draft)"
+  choice="$(pick_option "PR state" ready draft)"
 
   if [[ -z "${choice:-}" ]]; then
     echo "gpr: aborted" >&2
@@ -215,7 +213,8 @@ interactive_rebase_from_base() {
   local target_base="$1"
   local onto="origin/$target_base"
 
-  gum_spin "Fetching origin/$target_base…" git fetch origin "$target_base" 2>/dev/null || true
+  echo "Fetching origin/$target_base…"
+  git fetch origin "$target_base" 2>/dev/null || true
 
   if git show-ref --verify --quiet "refs/remotes/$onto" 2>/dev/null; then
     :

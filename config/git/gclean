@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GUM_HELPERS="${XDG_CONFIG_HOME:-$HOME/.config}/gum/helpers.sh"
-[[ -f "$GUM_HELPERS" ]] && source "$GUM_HELPERS"
+_gclean_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_interactive="${XDG_CONFIG_HOME:-$HOME/.config}/shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || _interactive="${_gclean_dir}/../shell/interactive-helpers.sh"
+[[ -f "$_interactive" ]] || { echo "gclean: interactive helpers not found; run dotinstall" >&2; exit 1; }
+# shellcheck source=/dev/null
+source "$_interactive"
 
 usage() {
   echo "usage: gclean [-f]" >&2
@@ -158,7 +162,8 @@ main() {
 
   require_git_repo
 
-  gum_spin "Fetching and pruning remotes…" git fetch --prune --quiet
+  echo "Fetching and pruning remotes…"
+  git fetch --prune --quiet
 
   default_base="$(detect_default_base)"
   current="$(current_branch)"
@@ -171,7 +176,7 @@ main() {
   echo
 
   if (( force )); then
-    if ! gum_confirm "Delete all local branches with no upstream tracking?"; then
+    if ! confirm_prompt "Delete all local branches with no upstream tracking?"; then
       echo "gclean: aborted"
       exit 0
     fi

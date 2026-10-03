@@ -38,6 +38,9 @@ else
     echo "Homebrew is already installed."
 fi
 
+ensure_homebrew_prefix_ownership
+ensure_brew_trusted_taps
+
 ensure_ssh_key
 ensure_ssh_config
 
@@ -75,8 +78,6 @@ if brew bundle check --file="$DOTFILES_DIR/Brewfile" >/dev/null 2>&1; then
 elif ! dotinstall_spin "Installing Brewfile packages…" brew bundle --file="$DOTFILES_DIR/Brewfile"; then
     echo "brew bundle had failures; continuing with symlinks and shell setup" >&2
 fi
-
-dotinstall_load_gum_env
 
 chmod +x "$DOTFILES_DIR/config/nvim/install.sh"
 if ! dotinstall_spin "Setting up Neovim (LazyVim)…" "$DOTFILES_DIR/config/nvim/install.sh"; then

@@ -5,12 +5,7 @@
 prompt_nonempty() {
     local var_name="$1" prompt_text="$2" value=""
     while true; do
-        if command -v gum >/dev/null 2>&1 && [[ -e /dev/tty ]]; then
-            value="$(gum input --prompt="${prompt_text}: " 2>/dev/null)" || value=""
-            stty sane 2>/dev/null || true
-        else
-            read -r "value?${prompt_text}: " </dev/tty
-        fi
+        read -r "value?${prompt_text}: " </dev/tty
         value="${value#"${value%%[![:space:]]*}"}"
         value="${value%"${value##*[![:space:]]}"}"
         if [[ -n "$value" ]]; then
@@ -109,6 +104,53 @@ load_user_config() {
     USER_NAME="$fields[1]"
     USER_EMAIL="$fields[2]"
     GITHUB_USERNAME="$fields[3]"
+}
+
+ensure_homebrew_prefix_ownership() {
+    local prefix="/opt/homebrew" owner="" mac_user=""
+
+    [[ -d "$prefix" ]] || return 0
+
+    mac_user="$(whoami 2>/dev/null || id -un 2>/dev/null || true)"
+    [[ -n "$mac_user" ]] || return 0
+
+    owner="$(stat -f '%Su' "$prefix" 2>/dev/null || true)"
+    if [[ "$owner" == "$mac_user" ]]; then
+        echo "Homebrew prefix already owned by $mac_user"
+        return 0
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "sudo not found; skipping chown of $prefix" >&2
+        return 0
+    fi
+
+    echo "Fixing ownership of $prefix (sudo chown -R ${mac_user})…"
+    if [[ -e /dev/tty ]]; then
+        sudo chown -R "$mac_user" "$prefix" </dev/tty >/dev/tty
+    else
+        sudo chown -R "$mac_user" "$prefix"
+    fi
+}
+
+ensure_brew_trusted_taps() {
+    local tap="" trusted_json=""
+
+    command -v brew >/dev/null 2>&1 || return 0
+
+    trusted_json="$(brew trust --json v1 2>/dev/null || true)"
+
+    for tap in hashicorp/tap mahfuzsust/tap; do
+        if [[ -n "$trusted_json" ]] && print -r -- "$trusted_json" | grep -Fq "$tap"; then
+            echo "Homebrew tap already trusted: $tap"
+            continue
+        fi
+        if brew trust --tap "$tap" 2>/dev/null; then
+            echo "Trusted Homebrew tap: $tap"
+        else
+            echo "brew trust --tap $tap failed; continuing" >&2
+        fi
+    done
 }
 
 load_notes_dir_from_config() {

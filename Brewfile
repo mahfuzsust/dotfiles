@@ -15,7 +15,6 @@ brew "ripgrep" # Ripgrep is a command-line tool for searching files
 brew "fd" # Fd is a command-line tool for finding files
 brew "fzf" # Fzf is a command-line tool for finding files
 brew "shellcheck" # Lint for bash scripts (scripts/check.sh)
-brew "gum" # Gum is a tool for glamorous shell prompts (https://github.com/charmbracelet/gum)
 brew "gh" # Gh is a command-line tool for GitHub
 brew "gnupg" # Gnupg is a command-line tool for managing GPG keys
 brew "awscli" # Awscli is a command-line tool for managing AWS

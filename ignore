@@ -177,3 +177,4 @@ Applications/
 .local/
 
 **/.claude/settings.local.json
+user-config.yml
