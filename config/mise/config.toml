@@ -1,0 +1,17 @@
+# Global mise config — symlinked to ~/.config/mise/config.toml by dotinstall.
+# Edit here, then re-run dotinstall (or `mise install`) to apply new tools.
+# https://mise.jdx.dev/getting-started.html
+
+[tools]
+# Global default tools (dotinstall runs `mise install`)
+go = "latest"
+python = "latest"
+java = "corretto-17.0.20"
+sbt = "1.12.9"
+scala = "2.13.18"
+gradle = "latest"
+maven = "latest"
+
+[settings]
+# Honor .nvmrc / .node-version in project dirs (overrides global node when set)
+idiomatic_version_file_enable_tools = ["node"]

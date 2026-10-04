@@ -1,15 +1,13 @@
 brew "wget" # Wget is a command-line tool for downloading files from the web
-brew "asdf" # Asdf is a tool for managing multiple versions of programming languages and tools
+brew "mise" # mise — dev tools, env vars, tasks (primary runtime manager)
+brew "asdf" # asdf — still installed for .tool-versions / plugin workflows (not bundled in mise)
 brew "bash" # Bash is a command-line shell
 brew "coreutils" # Coreutils is a collection of GNU utilities for file and text manipulation
 brew "git" # Git is a distributed version control system
 brew "go-task", link: false # Go-task task runner (exposed as task after install)
 brew "task", link: false # Taskwarrior (exposed as tk after install)
 brew "neovim" # Neovim is a modern, fast, and customizable text editor
-brew "nvm" # Nvm is a tool for managing multiple versions of Node.js
 brew "protobuf" # Protobuf is a language-neutral, platform-neutral, extensible mechanism for serializing structured data
-brew "go" # Go is a programming language
-brew "python" # Python is a programming language
 brew "jq" # Jq is a command-line JSON processor
 brew "ripgrep" # Ripgrep is a command-line tool for searching files
 brew "fd" # Fd is a command-line tool for finding files
@@ -49,4 +47,3 @@ cask "postman" # Postman is a REST client for testing and developing APIs
 cask "mahfuzsust/tap/passbook" # Passbook is a password manager
 cask "netnewswire" # Netnewswire is a RSS reader
 
-npm "corepack" # Corepack is a tool for managing the core packages of a JavaScript project

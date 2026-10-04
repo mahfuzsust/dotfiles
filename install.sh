@@ -114,12 +114,12 @@ if ! dotinstall_spin "Installing claude-sessions…" "$DOTFILES_DIR/config/claud
     echo "claude-sessions install had failures; continuing" >&2
 fi
 
-chmod +x "$DOTFILES_DIR/config/sdkman/install.sh"
-if ! dotinstall_spin "Installing SDKMAN packages…" "$DOTFILES_DIR/config/sdkman/install.sh" "$DOTFILES_DIR/config/sdkman"; then
-    echo "SDKMAN install had failures; continuing" >&2
-fi
-
 dotinstall_spin "Applying dotfiles configuration…" dotinstall_apply_configuration
+
+chmod +x "$DOTFILES_DIR/config/mise/install.sh"
+if ! dotinstall_spin "Installing mise tools…" "$DOTFILES_DIR/config/mise/install.sh"; then
+    echo "mise install had failures; continuing" >&2
+fi
 
 # GPG commit signing (setup-gpg skips when signing key is already configured)
 dotinstall_spin "Setting up GPG commit signing…" "$DOTFILES_DIR/config/git/setup-gpg"

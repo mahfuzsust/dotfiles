@@ -209,6 +209,7 @@ ensure_managed_zshrc() {
         /^[[:space:]]*(export )?ZSH_DISABLE_COMPFIX/ ||
         /^export ZSH=/ || /^ZSH_THEME=/ || /^plugins=\(/ || /^source \$ZSH\/oh-my-zsh\.sh/ ||
         /^export NVM_DIR=/ || /NVM_DIR\/nvm\.sh/ || /NVM_DIR\/bash_completion/ ||
+        /sdkman-init\.sh/ || /mise activate/ ||
         /go env GOPATH/ || /kubectl completion zsh/ || /GPG_TTY=\$\(tty\)/ || /^# DOTFILES GPG TTY/ ||
         /^[[:space:]]*unalias (gpr|gprm|kubectl)/ || /^# Override Oh My Zsh git plugin/ ||
         /config\/(fzf\/fzf\.env|zsh\/zoxide\.env|shell\/aliases)/ { drop($0); next }

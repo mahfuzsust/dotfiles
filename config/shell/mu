@@ -1,0 +1,79 @@
+# mu — install and activate Node from .nvmrc (mise; replaces `nvm use`).
+# Does not run `mise use` (that would write mise.toml). Uses idiomatic .nvmrc + session override.
+#
+# @help mu [version|dir] | Node from .nvmrc via mise (replaces nvm use)
+
+_mu_nvmrc_version() {
+  local dir="$1" f raw=""
+  for f in .nvmrc .node-version; do
+    [[ -f "$dir/$f" ]] || continue
+    raw="$(<"$dir/$f")"
+    break
+  done
+  [[ -n "$raw" ]] || return 1
+  raw="${raw%%#*}"
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  raw="${raw%"${raw##*[![:space:]]}"}"
+  raw="${raw#v}"
+  [[ -n "$raw" ]] || return 1
+  print -r -- "$raw"
+}
+
+mu() {
+  emulate -L zsh
+  if ! command -v mise >/dev/null; then
+    print -u2 "mu: mise not found (dotinstall / Brewfile)"
+    return 127
+  fi
+  if ! (( $+functions[mise] )); then
+    print -u2 "mu: mise is not activated in this shell (source ~/.zshrc)"
+    return 1
+  fi
+
+  local target="$PWD" ver=""
+  case $# in
+    0) ;;
+    1)
+      if [[ -d "$1" ]]; then
+        target="${1:A}"
+      else
+        ver="${1#v}"
+      fi
+      ;;
+    *)
+      print -u2 "usage: mu [version] | mu [directory]"
+      return 2
+      ;;
+  esac
+
+  if [[ -z "$ver" ]]; then
+    ver="$(_mu_nvmrc_version "$target")" || {
+      print -u2 "mu: no .nvmrc or .node-version in $target (or pass a version)"
+      return 1
+    }
+  fi
+
+  if [[ "$target:A" != "$PWD:A" ]]; then
+    cd "$target" || return $?
+  fi
+
+  mise install "node@${ver}" || return $?
+  mise shell "node@${ver}" || return $?
+  eval "$(mise hook-env -s zsh)"
+
+  print -r -- "Now using node $(command node --version) (requested ${ver})"
+}
+
+nvm() {
+  emulate -L zsh
+  case "${1:-}" in
+    use)
+      shift
+      mu "$@"
+      ;;
+    *)
+      print -u2 "nvm: only 'nvm use' is supported here (mise via mu); try: mu"
+      return 1
+      ;;
+  esac
+}
