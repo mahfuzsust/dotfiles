@@ -8,7 +8,7 @@ fails=0
 
 bad() { print -r -- "FAIL $1"; (( fails++ )) }
 
-for f in install.sh install/lib/*.sh config/shell/*(.) config/zsh/*(.) config/fzf/*.zsh config/load-user-config.zsh config/sdkman/install.sh tests/*.zsh; do
+for f in install.sh install/lib/*.sh config/shell/*(.) config/zsh/*(.) config/fzf/*.zsh config/load-user-config.zsh config/mise/install.sh tests/*.zsh; do
   case "$f" in *.json|*.env) continue ;; esac
   zsh -n "$f" 2>/dev/null || bad "zsh -n $f"
 done
@@ -29,6 +29,9 @@ fi
 for t in tests/*.zsh; do
   zsh "$t" </dev/null >/dev/null || bad "$t"
 done
+
+chmod +x "$root/scripts/verify-mise-registry.zsh" 2>/dev/null || true
+zsh "$root/scripts/verify-mise-registry.zsh" >/dev/null || bad "verify-mise-registry"
 
 (( fails )) && { print "$fails check(s) failed"; exit 1 }
 print "all checks passed"

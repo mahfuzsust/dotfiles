@@ -17,7 +17,7 @@ usage() {
 
 require_gh() {
   if ! command -v gh >/dev/null 2>&1; then
-    echo "gpr: gh CLI not found. Install with: brew install gh" >&2
+    echo "gpr: gh CLI not found. Install with: mise install (github-cli) or dotinstall" >&2
     exit 1
   fi
   if ! gh auth status >/dev/null 2>&1; then

@@ -33,8 +33,10 @@ link_file "$DOTFILES_DIR/config/fzf/fzf.env" "$CONFIG_DIR/fzf/fzf.env"
 link_file "$DOTFILES_DIR/config/fzf/rg-fzf-lib.zsh" "$CONFIG_DIR/fzf/rg-fzf-lib.zsh"
 link_file "$DOTFILES_DIR/config/fzf/rg-fzf-reload.zsh" "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 chmod +x "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
-mkdir -p "$CONFIG_DIR/sdkman"
-link_file "$DOTFILES_DIR/config/sdkman/packages" "$CONFIG_DIR/sdkman/packages"
+mkdir -p "$CONFIG_DIR/mise"
+link_file "$DOTFILES_DIR/config/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
+rm -f "$CONFIG_DIR/sdkman/packages" "$CONFIG_DIR/zsh/sdkman.env" 2>/dev/null || true
+rmdir "$CONFIG_DIR/sdkman" 2>/dev/null || true
 mkdir -p "$CONFIG_DIR/zsh"
 for zsh_file in "$DOTFILES_DIR/config/zsh"/*(N); do
     link_file "$zsh_file" "$CONFIG_DIR/zsh/${zsh_file:t}"

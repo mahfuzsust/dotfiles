@@ -151,11 +151,11 @@ Thumbs.db
 Desktop.ini
 
 .asdf
+.local/share/mise
 .oh-my-zsh
 .gem
 .sc-tools
 .nvm
-.sdkman
 Library/
 .cursor
 virtualenv

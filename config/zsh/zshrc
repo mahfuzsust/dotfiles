@@ -45,8 +45,7 @@ if [[ -t 0 ]]; then
 fi
 source "$_dotfiles_cfg/fzf/fzf.env"
 source "$_dotfiles_cfg/zsh/zoxide.env"
-source "$_dotfiles_cfg/zsh/lazy-nvm.zsh"
-source "$_dotfiles_cfg/zsh/sdkman.env"
+source "$_dotfiles_cfg/zsh/mise.env"
 source "$_dotfiles_cfg/zsh/kubectl-completion.zsh"
 
 # --- aliases: after Oh My Zsh (its git plugin defines gpr = pull --rebase) ---

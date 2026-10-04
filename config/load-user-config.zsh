@@ -140,7 +140,7 @@ ensure_brew_trusted_taps() {
 
     trusted_json="$(brew trust --json v1 2>/dev/null || true)"
 
-    for tap in hashicorp/tap mahfuzsust/tap; do
+    for tap in mahfuzsust/tap; do
         if [[ -n "$trusted_json" ]] && print -r -- "$trusted_json" | grep -Fq "$tap"; then
             echo "Homebrew tap already trusted: $tap"
             continue

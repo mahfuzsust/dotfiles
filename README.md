@@ -74,19 +74,13 @@ Sign in or grant permissions as needed, for example:
 
 | Package | Purpose |
 |---------|---------|
-| `git`, `gh`, `gh-stack` | Version control and GitHub CLI |
+| `git`, `gh-stack` | Version control (GitHub CLI via mise) |
 | `neovim` | Default editor |
-| `fzf`, `fd`, `ripgrep` | Fuzzy finding and fast search |
-| `bat`, `bat-extras`, `git-delta` | Pager, [bat-extras](https://github.com/eth-p/bat-extras), [delta](https://github.com/dandavison/delta) for git diffs |
-| `jq` | JSON processing |
-| `go`, `python`, `protobuf` | Languages and tooling |
-| `asdf`, `nvm` | Runtime version managers |
-| [SDKMAN!](https://sdkman.io/install/) | JVM/Scala tooling via `config/sdkman/packages` (not Homebrew) |
-| `awscli`, `gcloud-cli` (cask) | Cloud CLIs |
-| `terraform` (HashiCorp tap) | Infrastructure as code |
-| `mongosh` | MongoDB shell |
-| `go-task` | Task runner exposed as `task` |
-| `task` | Taskwarrior exposed as `tk` |
+| [mise](https://mise.jdx.dev/getting-started.html) | Runtimes, cloud/infra CLIs, and dev tools — see `config/mise/config.toml` |
+| `asdf` | Installed via Homebrew for legacy `.tool-versions` / plugins (mise does not ship the asdf CLI) |
+| `gcloud-cli` (cask) | Google Cloud CLI (`mise registry gcloud` exists; cask kept for macOS installer) |
+| `task` (Homebrew) | Taskwarrior exposed as `tk` (go-task via mise as `task`) |
+| `wget`, `tree`, `gnupg` | Not in mise registry — stay on Homebrew |
 
 ### Zsh plugins (Homebrew)
 
@@ -100,16 +94,15 @@ Bitwarden, Cursor, iTerm2, IntelliJ IDEA, Notion, VS Code, Fira Code font, and o
 
 To add a package, edit `Brewfile` and re-run `./install.sh`.
 
-### SDKMAN! (`config/sdkman/packages`)
+### mise (`config/mise/config.toml`)
 
-[SDKMAN!](https://sdkman.io/install/) is installed on first `dotinstall` (`rcupdate=false`; shell init lives in `config/zsh/sdkman.env`). Add one command per line in **`config/sdkman/packages`**, for example:
+[mise](https://mise.jdx.dev/getting-started.html) is installed from Homebrew; global tools live in **`config/mise/config.toml`** (symlinked to `~/.config/mise/config.toml`). Shell activation is in `config/zsh/mise.env`.
 
-```text
-sdk install java
-sdk install sbt
-```
+Re-run `dotinstall` (or `mise install`) after editing tools. Before moving a Homebrew formula into `[tools]`, confirm it with **`scripts/verify-mise-registry.zsh`** (also run from `scripts/check.sh` when `mise` is installed).
 
-Install **Java before** tools like sbt. Re-run `dotinstall` to apply new lines. `sbt` is no longer installed via Homebrew.
+Node versions in projects with a **`.nvmrc`** are picked up automatically (`idiomatic_version_file_enable_tools` includes `node`).
+
+In a repo with `.nvmrc`, run **`mu`** (or **`nvm use`**, which calls the same helper) to install that Node version and activate it in the current shell — without writing `mise.toml`. With `mise activate`, `cd` into the project also switches versions once the version is installed.
 
 ---
 
@@ -351,11 +344,11 @@ Optional editor comes first, then the same patterns as `s`. fzf uses bat preview
 
 | File | Loaded from | Purpose |
 |------|-------------|---------|
-| `zshrc` | `~/.zshrc` (single block) | Ordered interactive setup: completions, Oh My Zsh + plugins, fzf, zoxide, lazy nvm, kubectl completion, aliases |
+| `zshrc` | `~/.zshrc` (single block) | Ordered interactive setup: completions, Oh My Zsh + plugins, fzf, zoxide, mise, kubectl completion, aliases |
 | `zenv` | `~/.zshenv` (dotfiles block) | Universal env for every zsh (`DOTFILES_CONFIG`, `RIPGREP_CONFIG_PATH`, …) |
 | `zprofile` | `~/.zprofile` (dotfiles block) | Login shell: `brew shellenv`, `~/.local/bin` on `PATH` |
 | `zoxide.env` | `zshrc` | `eval "$(zoxide init zsh)"` when `zoxide` is installed |
-| `lazy-nvm.zsh` | `zshrc` | `nvm`/`node`/`npm`/`npx`/`corepack` stubs that load `nvm.sh` on first use (saves ~0.8s per shell) |
+| `mise.env` | `zshrc` | `mise activate zsh` — project tools, `.nvmrc`, and `JAVA_HOME` |
 | `kubectl-completion.zsh` | `zshrc` | kubectl completion cached in `~/.cache/zsh/`, refreshed when the kubectl binary changes |
 
 Optional, untracked hooks: `~/.config/zsh/pre-omz.zsh` (override `ZSH_THEME` / `plugins=(…)` before Oh My Zsh) and `~/.config/zsh/local.zsh` (machine-specific lines, runs last). Your own lines in `~/.zshrc` (PATH tweaks, secrets, aliases) are left alone.
@@ -364,7 +357,7 @@ Optional, untracked hooks: `~/.config/zsh/pre-omz.zsh` (override `ZSH_THEME` / `
 
 `install.sh` also prepends managed blocks to `~/.zshenv` and `~/.zprofile` without replacing Docker, `sc-tools`, or other existing lines.
 
-**Startup time:** run `dotprof` for a zprof report. A fresh interactive shell takes ~0.3s (was ~1.3s with eager nvm and `kubectl completion` forked on every start).
+**Startup time:** run `dotprof` for a zprof report. mise activation is lighter than eager `nvm.sh`; kubectl completion is still cached on first use.
 
 `zshrc` also sets `ZSH_DISABLE_COMPFIX=true`, puts Homebrew `zsh-completions` on `FPATH`, and `install.sh` fixes permissions on `$(brew --prefix)/share` to stop the compinit *"Ignore insecure directories"* prompt.
 

@@ -1,0 +1,40 @@
+# Global mise config — symlinked to ~/.config/mise/config.toml by dotinstall.
+# Edit here, then re-run dotinstall (or `mise install`) to apply new tools.
+# https://mise.jdx.dev/getting-started.html
+
+[tools]
+# Languages & JVM
+go = "latest"
+python = "latest"
+java = "corretto-17.0.20"
+sbt = "1.12.9"
+scala = "2.13.18"
+gradle = "latest"
+maven = "latest"
+
+# Cloud & infra
+"aws-cli" = "latest"
+terraform = "latest"
+kubectl = "latest"
+minikube = "latest"
+
+# CLI utilities (registry names — https://mise.jdx.dev/registry.html)
+"github-cli" = "latest"
+jq = "latest"
+ripgrep = "latest"
+fd = "latest"
+fzf = "latest"
+bat = "latest"
+"bat-extras" = "latest"
+delta = "latest"
+shellcheck = "latest"
+zoxide = "latest"
+eza = "latest"
+protoc = "latest"
+mongosh = "latest"
+tmux = "latest"
+task = "latest" # go-task (https://github.com/go-task/task)
+
+[settings]
+# Honor .nvmrc / .node-version in project dirs (overrides global node when set)
+idiomatic_version_file_enable_tools = ["node"]

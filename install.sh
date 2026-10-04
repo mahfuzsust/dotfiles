@@ -89,17 +89,11 @@ if ! dotinstall_spin "Installing Fira Code Nerd Font…" "$DOTFILES_DIR/config/f
     echo "Fira Code Nerd Font Mono install had failures; continuing" >&2
 fi
 
-# go-task and taskwarrior both ship a "task" binary. Neither is linked by
-# brew bundle (link: false in Brewfile); expose go-task as "task" and
-# taskwarrior as "tk" via symlinks to avoid brew link conflicts.
-brew unlink go-task >/dev/null 2>&1 || true
+# Taskwarrior ships a "task" binary; go-task is installed via mise as "task".
+# Brew task is link: false — expose taskwarrior as "tk" only.
 brew unlink task >/dev/null 2>&1 || true
 brew_prefix="$(brew --prefix)"
-go_task_bin="$(brew --prefix go-task)/bin/task"
 taskwarrior_bin="$(brew --prefix task)/bin/task"
-if [[ -x "$go_task_bin" ]] && [[ ! ( -e "$brew_prefix/bin/task" && "${brew_prefix}/bin/task:A" == "${go_task_bin:A}" ) ]]; then
-    ln -sfn "$go_task_bin" "$brew_prefix/bin/task"
-fi
 if [[ -x "$taskwarrior_bin" ]] && [[ ! ( -e "$brew_prefix/bin/tk" && "${brew_prefix}/bin/tk:A" == "${taskwarrior_bin:A}" ) ]]; then
     ln -sfn "$taskwarrior_bin" "$brew_prefix/bin/tk"
 fi
@@ -114,12 +108,12 @@ if ! dotinstall_spin "Installing claude-sessions…" "$DOTFILES_DIR/config/claud
     echo "claude-sessions install had failures; continuing" >&2
 fi
 
-chmod +x "$DOTFILES_DIR/config/sdkman/install.sh"
-if ! dotinstall_spin "Installing SDKMAN packages…" "$DOTFILES_DIR/config/sdkman/install.sh" "$DOTFILES_DIR/config/sdkman"; then
-    echo "SDKMAN install had failures; continuing" >&2
-fi
-
 dotinstall_spin "Applying dotfiles configuration…" dotinstall_apply_configuration
+
+chmod +x "$DOTFILES_DIR/config/mise/install.sh"
+if ! dotinstall_spin "Installing mise tools…" "$DOTFILES_DIR/config/mise/install.sh"; then
+    echo "mise install had failures; continuing" >&2
+fi
 
 # GPG commit signing (setup-gpg skips when signing key is already configured)
 dotinstall_spin "Setting up GPG commit signing…" "$DOTFILES_DIR/config/git/setup-gpg"
