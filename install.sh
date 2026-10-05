@@ -57,6 +57,13 @@ else
     fi
 fi
 
+chmod +x "$DOTFILES_DIR/scripts/brew-remove"
+if [[ -f "$DOTFILES_DIR/Brewfile-remove" ]]; then
+    if ! dotinstall_spin "Applying Brewfile-remove…" "$DOTFILES_DIR/scripts/brew-remove" "$DOTFILES_DIR/Brewfile-remove"; then
+        echo "Brewfile-remove had failures; continuing" >&2
+    fi
+fi
+
 dotinstall_spin "Updating Homebrew…" brew update
 
 if [[ -n "$(brew outdated 2>/dev/null)" ]]; then

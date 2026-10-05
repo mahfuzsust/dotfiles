@@ -1,0 +1,67 @@
+#!/usr/bin/env zsh
+# Apply Brewfile-remove: uninstall listed formulae if installed; untap listed taps.
+# Usage: scripts/brew-remove [path/to/Brewfile-remove]
+emulate -L zsh
+
+remove_file="${1:-${DOTFILES_DIR:-$HOME/dotfiles}/Brewfile-remove}"
+
+command -v brew >/dev/null 2>&1 || {
+  echo "brew-remove: brew not found" >&2
+  exit 1
+}
+
+[[ -f "$remove_file" ]] || {
+  echo "brew-remove: no file at $remove_file (nothing to do)"
+  exit 0
+}
+
+_brew_remove_blocked_by_deps() {
+  local formula="$1" users=""
+  users="$(brew uses --installed --formula "$formula" 2>/dev/null)" || return 1
+  [[ -z "$users" ]] && return 1
+  echo "brew-remove: skip $formula (required by installed: ${users//$'\n'/, })"
+  return 0
+}
+
+formulas=()
+taps=()
+line="" token=""
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%%#*}"
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
+  [[ -z "$line" ]] && continue
+  if [[ "$line" == untap* ]]; then
+    if [[ "$line" =~ 'untap[[:space:]]+"([^"]+)"' ]] || [[ "$line" =~ "untap[[:space:]]+'([^']+)'" ]]; then
+      taps+=("${match[1]}")
+    fi
+    continue
+  fi
+  if [[ "$line" != brew* ]]; then
+    continue
+  fi
+  token="${line#brew }"
+  token="${token#\"}"
+  token="${token%%\"*}"
+  token="${token#\'}"
+  token="${token%%\'*}"
+  [[ -n "$token" ]] && formulas+=("$token")
+done <"$remove_file"
+
+for formula in "${formulas[@]}"; do
+  brew list --formula "$formula" &>/dev/null || continue
+  if _brew_remove_blocked_by_deps "$formula"; then
+    continue
+  fi
+  echo "brew-remove: uninstalling $formula"
+  brew uninstall "$formula" || echo "brew-remove: skip $formula (brew uninstall failed)" >&2
+done
+
+for tap in "${taps[@]}"; do
+  brew tap 2>/dev/null | grep -qx "$tap" || continue
+  echo "brew-remove: untap $tap"
+  brew untap "$tap" 2>/dev/null || echo "brew-remove: skip untap $tap (tap not empty or in use)" >&2
+done
+
+echo "brew-remove: done"

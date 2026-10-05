@@ -94,6 +94,8 @@ Bitwarden, Cursor, iTerm2, IntelliJ IDEA, Notion, VS Code, Fira Code font, and o
 
 To add a package, edit `Brewfile` and re-run `./install.sh`.
 
+When a formula is no longer wanted on Homebrew (e.g. moved to mise), remove it from **`Brewfile`** and add the same `brew "…"` line to **`Brewfile-remove`**. **`install.sh`** runs that list before `brew update` (uninstall only if installed; skips when another installed package depends on it).
+
 ### mise (`config/mise/config.toml`)
 
 [mise](https://mise.jdx.dev/getting-started.html) is installed from Homebrew; global tools live in **`config/mise/config.toml`** (symlinked to `~/.config/mise/config.toml`). Shell activation is in `config/zsh/mise.env`.
