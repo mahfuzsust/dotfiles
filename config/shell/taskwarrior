@@ -1,0 +1,27 @@
+# Taskwarrior via `tk` (brew task, link:false). go-task is `task` from mise — do not mix them.
+
+_tw() {
+  local bin=""
+  if command -v tk >/dev/null 2>&1; then
+    command tk "$@"
+    return $?
+  fi
+  bin="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/task/bin/task"
+  if [[ -x "$bin" ]]; then
+    "$bin" "$@"
+    return $?
+  fi
+  print -u2 "taskwarrior not found (brew install task; dotinstall links tk)" >&2
+  return 127
+}
+
+# Shared report overrides for stup / summary (verbose=label breaks some reports).
+_tw_report() {
+  _tw \
+    rc.verbose=0 \
+    rc.report.all.columns=project,description \
+    rc.report.all.labels=Project,Description \
+    rc.defaultwidth=0 \
+    rc.defaultheight=0 \
+    "$@"
+}

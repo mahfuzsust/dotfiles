@@ -10,22 +10,30 @@ _stup_filter() {
   print -r -- "$date_filter"
 }
 
-_stup_task() {
-  tk \
-    rc.report.all.columns=project,description \
-    rc.report.all.labels=Project,Description \
-    rc.verbose=label \
-    rc.defaultwidth=0 \
-    rc.defaultheight=0 \
-    "$@"
-}
-
 _stup_section() {
   local title=$1
   shift
-  local output=""
+  local output="" err="" rc=0
 
-  output="$(_stup_task "$@" 2>/dev/null)" || true
+  err="$(mktemp)"
+  output="$(_tw_report "$@" 2>"$err")"
+  rc=$?
+  output="${output//$'No matches.'/}"
+  output="${output#"${output%%[![:space:]]*}"}"
+  output="${output%"${output##*[![:space:]]}"}"
+
+  if [[ -s "$err" ]]; then
+    local errtext="$(<"$err")"
+    errtext="${errtext#"${errtext%%[![:space:]]*}"}"
+    errtext="${errtext%"${errtext##*[![:space:]]}"}"
+    if [[ -n "$errtext" && "$errtext" != "No matches." ]]; then
+      print -u2 "stup: $title: $errtext"
+      rm -f "$err"
+      return 1
+    fi
+  fi
+  rm -f "$err"
+
   [[ -n "${output//[$' \t']/}" ]] || return 1
 
   if (( _stup_sections_printed )); then
@@ -39,17 +47,22 @@ _stup_section() {
 
 # @help stup | task standup helper
 stup() {
-  command -v tk >/dev/null 2>&1 || {
-    echo "stup: taskwarrior not found (tk)" >&2
-    return 1
-  }
-
-  local filter
   typeset -i _stup_sections_printed=0
+  local filter=""
+
+  if ! command -v tk >/dev/null 2>&1 \
+      && [[ ! -x "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/task/bin/task" ]]; then
+    print -u2 "stup: taskwarrior not found (tk)"
+    return 1
+  fi
 
   filter="$(_stup_filter)"
 
-  _stup_section "Completed" "$filter" status:completed all
-  _stup_section "In Progress" +work '(status:active or start:today)' status.not:completed all
-  _stup_section "Pending" +work status:pending -ACTIVE all
+  _stup_section "Completed" "$filter" status:completed all || true
+  _stup_section "In Progress" +work '(status:active or start:today)' status.not:completed all || true
+  _stup_section "Pending" +work status:pending -ACTIVE all || true
+
+  if (( ! _stup_sections_printed )); then
+    print -r -- "No tasks matched standup filters (+work, today/yesterday)."
+  fi
 }

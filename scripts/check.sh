@@ -8,7 +8,7 @@ fails=0
 
 bad() { print -r -- "FAIL $1"; (( fails++ )) }
 
-for f in install.sh install/lib/*.sh config/shell/*(.) config/zsh/*(.) config/fzf/*.zsh config/load-user-config.zsh config/mise/install.sh scripts/brew-remove tests/*.zsh; do
+for f in install.sh install/lib/*.sh config/shell/*(.) config/zsh/*(.) config/fzf/*.zsh config/load-user-config.zsh config/mise/install.sh config/go/install.sh scripts/brew-remove tests/*.zsh; do
   case "$f" in *.json|*.env) continue ;; esac
   zsh -n "$f" 2>/dev/null || bad "zsh -n $f"
 done

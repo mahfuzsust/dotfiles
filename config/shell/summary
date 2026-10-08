@@ -173,13 +173,7 @@ _summary_range() {
 }
 
 _summary_task() {
-  tk \
-    rc.report.all.columns=project,description \
-    rc.report.all.labels=Project,Description \
-    rc.verbose=label \
-    rc.defaultwidth=0 \
-    rc.defaultheight=0 \
-    "$@"
+  _tw_report "$@"
 }
 
 # @help summary week|month|quarter|year [last|current] [-tags ..] | completed taskwarrior tasks
@@ -234,10 +228,11 @@ summary() {
     fi
   fi
 
-  command -v tk >/dev/null 2>&1 || {
-    echo "summary: taskwarrior not found (tk)" >&2
+  if ! command -v tk >/dev/null 2>&1 \
+      && [[ ! -x "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/task/bin/task" ]]; then
+    print -u2 "summary: taskwarrior not found (tk)"
     return 1
-  }
+  fi
 
   [[ -n "$tag_filter" ]] && tag_args=("$(_summary_tag_filter "$tag_filter")")
 
@@ -252,7 +247,7 @@ summary() {
       status:completed \
       "end.after:${start_exclusive}" \
       "end.before:${end_exclusive}" \
-      all 2>/dev/null
+      all
   )" || true
 
   if [[ -z "${output//[$' \t']/}" ]]; then

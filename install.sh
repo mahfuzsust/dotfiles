@@ -122,6 +122,11 @@ if ! dotinstall_spin "Installing mise tools…" "$DOTFILES_DIR/config/mise/insta
     echo "mise install had failures; continuing" >&2
 fi
 
+chmod +x "$DOTFILES_DIR/config/go/install.sh"
+if ! dotinstall_spin "Installing Go tools (dlv)…" "$DOTFILES_DIR/config/go/install.sh"; then
+    echo "Go tools install had failures; continuing" >&2
+fi
+
 # GPG commit signing (setup-gpg skips when signing key is already configured)
 dotinstall_spin "Setting up GPG commit signing…" "$DOTFILES_DIR/config/git/setup-gpg"
 
