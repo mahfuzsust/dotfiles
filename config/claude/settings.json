@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(~/git/**)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(rg *)",
+      "Bash(jq *)",
+      "Bash(grep *)",
+      "Bash(gh api *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh repo view *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh release view *)",
+      "Bash(gh release list *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git commit *)"
+    ],
+    "deny": [
+      "Read(**/.env*)",
+      "Read(**/secrets/**)",
+      "Read(**/*credentials*)",
+      "Read(**/*secret*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(/**/*.pem)"
+    ],
+    "defaultMode": "auto",
+    "disableBypassPermissionsMode": "disable",
+    "blockReadsOutsideWorkingDirectories": false
+  },
+  "model": "eu.anthropic.claude-opus-5-5",
+  "allowManagedHooksOnly": false,
+  "allowManagedPermissionRulesOnly": true,
+  "allowManagedMcpServersOnly": true,
+  "effortLevel": "high",
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "editorMode": "nvim",
+  "disableAdaptiveThinking": true
+}

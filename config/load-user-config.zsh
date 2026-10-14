@@ -227,6 +227,39 @@ print -r -- "export GITHUB_USERNAME=${(q)GITHUB_USERNAME}")"
     print -r -- "$new_content" >"$dest"
 }
 
+write_claude_settings() {
+    local base_file="$1" dest_file="$2" config_file="$3"
+
+    [[ -f "$base_file" ]] || {
+        echo "write_claude_settings: missing base $base_file" >&2
+        return 1
+    }
+    [[ -f "$config_file" ]] || {
+        echo "write_claude_settings: missing $config_file" >&2
+        return 1
+    }
+
+    if [[ ! -x /usr/bin/ruby ]]; then
+        echo "install requires /usr/bin/ruby to write Claude settings" >&2
+        return 1
+    fi
+
+    mkdir -p "$(dirname "$dest_file")"
+
+    /usr/bin/ruby -rjson -ryaml -e '
+      base = JSON.parse(File.read(ARGV[0]))
+      cfg = YAML.load_file(ARGV[1])
+      aws = cfg.dig("claude", "settings", "awsAuthRefresh")
+      aws = aws.to_s.strip unless aws.nil?
+      if aws && !aws.empty?
+        base["awsAuthRefresh"] = aws
+      else
+        base.delete("awsAuthRefresh")
+      end
+      File.write(ARGV[2], JSON.pretty_generate(base) + "\n")
+    ' "$base_file" "$config_file" "$dest_file"
+}
+
 apply_github_from_config() {
     local insteadof="https://github.com/${GITHUB_USERNAME}/"
     local url_key="url.git@github.com:${GITHUB_USERNAME}/.insteadof"

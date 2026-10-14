@@ -35,6 +35,10 @@ link_file "$DOTFILES_DIR/config/fzf/rg-fzf-reload.zsh" "$CONFIG_DIR/fzf/rg-fzf-r
 chmod +x "$CONFIG_DIR/fzf/rg-fzf-reload.zsh"
 mkdir -p "$CONFIG_DIR/mise"
 link_file "$DOTFILES_DIR/config/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
+write_claude_settings \
+    "$DOTFILES_DIR/config/claude/settings.json" \
+    "$HOME/.claude/settings.json" \
+    "${USER_CONFIG:-$DOTFILES_DIR/user-config.yml}"
 rm -f "$CONFIG_DIR/sdkman/packages" "$CONFIG_DIR/zsh/sdkman.env" 2>/dev/null || true
 rmdir "$CONFIG_DIR/sdkman" 2>/dev/null || true
 mkdir -p "$CONFIG_DIR/zsh"

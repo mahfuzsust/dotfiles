@@ -9,3 +9,7 @@ github:
 # Obsidian notes vault for Ctrl+N ripgrep search (override path; $HOME is expanded)
 notes:
   directory: $HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/_Notes_
+
+claude:
+  settings:
+    awsAuthRefresh: "<DO AWS SSO LOGIN COMMAND HERE>"

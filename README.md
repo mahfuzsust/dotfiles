@@ -251,6 +251,8 @@ Open IntelliJ at least once before the first install so the config directory exi
 
 **VS Code / Cursor** share **`config/editor/keybindings.json`** (symlinked on `dotinstall`) for the same navigation and usage shortcuts as above. Bookmarks use the **[Bookmarks](https://marketplace.visualstudio.com/items?itemName=alefragnani.Bookmarks)** extension (`install-catppuccin.sh` installs it for `code` and `cursor`). Conflicting defaults (sidebar **⌘B**, build **⌘⇧B**, indent/outdent on **⌘[** / **⌘]**) are unbound where needed.
 
+**Claude Code** — **`config/claude/settings.json`** is the base; `dotinstall` writes **`~/.claude/settings.json`**. Optional **`claude.settings.awsAuthRefresh`** in **`user-config.yml`** is merged in when set. Machine-specific overrides: **`~/.claude/settings.local.json`** (gitignored).
+
 ### `greview` — review a pull request in IntelliJ IDEA
 
 ```bash
