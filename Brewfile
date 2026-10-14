@@ -5,9 +5,7 @@ brew "bash" # Bash is a command-line shell
 brew "coreutils" # Coreutils is a collection of GNU utilities for file and text manipulation
 brew "git" # Git is a distributed version control system
 brew "task", link: false # Taskwarrior (exposed as tk after install; go-task is via mise)
-brew "neovim" # Neovim is a modern, fast, and customizable text editor
 brew "gnupg" # Gnupg is a command-line tool for managing GPG keys
-brew "tree" # Tree is a command-line tool for displaying directories as a tree
 brew 'zsh-syntax-highlighting' # Zsh-syntax-highlighting is a plugin for Zsh for syntax highlighting
 brew 'zsh-autosuggestions' # Zsh-autosuggestions is a plugin for Zsh for autosuggestions
 brew 'zsh-completions' # Zsh-completions is a plugin for Zsh for completions

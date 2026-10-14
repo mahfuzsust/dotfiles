@@ -1,4 +1,2 @@
-# Dropped from Brewfile — install.sh runs scripts/brew-remove before brew update.
-# brew "…" for formulae; cask "…" for casks (same syntax as Brewfile).
-
-cask "iterm2"
+# brew "nvm"
+# untap "hashicorp/tap"
