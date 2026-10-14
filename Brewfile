@@ -25,3 +25,4 @@ cask "obsidian" # Obsidian is a note-taking and knowledge management tool
 cask "postman" # Postman is a REST client for testing and developing APIs
 cask "mahfuzsust/tap/passbook" # Passbook is a password manager
 cask "netnewswire" # Netnewswire is a RSS reader
+cask "tunnelblick" # Tunnelblick is a VPN client

@@ -11,6 +11,7 @@ sbt = "1.12.9"
 scala = "2.13.18"
 gradle = "latest"
 maven = "latest"
+ruby = "2.7.8"
 
 # Cloud & infra
 "aws-cli" = "latest"
