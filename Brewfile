@@ -26,3 +26,4 @@ cask "postman" # Postman is a REST client for testing and developing APIs
 cask "mahfuzsust/tap/passbook" # Passbook is a password manager
 cask "netnewswire" # Netnewswire is a RSS reader
 cask "tunnelblick" # Tunnelblick is a VPN client
+cask "claude-code" # Claude Code is a code editor that is a modern, open-source, and customizable code editor
