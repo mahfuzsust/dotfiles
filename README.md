@@ -94,7 +94,7 @@ Bitwarden, Cursor, IntelliJ IDEA, Notion, VS Code, Fira Code font, and others.
 
 To add a package, edit `Brewfile` and re-run `./install.sh`.
 
-When a formula is no longer wanted on Homebrew (e.g. moved to mise), remove it from **`Brewfile`** and add the same `brew "…"` line to **`Brewfile-remove`**. **`install.sh`** runs that list before `brew update` (uninstall only if installed; skips when another installed package depends on it).
+When a formula or cask is no longer wanted on Homebrew (e.g. moved to mise), remove it from **`Brewfile`** and add the same `brew "…"` or `cask "…"` line to **`Brewfile-remove`**. **`install.sh`** runs that list before `brew update` (uninstall only if installed; formulae skip when another installed package depends on them).
 
 ### mise (`config/mise/config.toml`)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# Apply Brewfile-remove: uninstall listed formulae if installed; untap listed taps.
+# Apply Brewfile-remove: uninstall listed formulae/casks if installed; untap listed taps.
 # Usage: scripts/brew-remove [path/to/Brewfile-remove]
 emulate -L zsh
 
@@ -23,7 +23,21 @@ _brew_remove_blocked_by_deps() {
   return 0
 }
 
+_brew_remove_parse_token() {
+  local kind="$1" line="$2"
+  token="${line#${kind} }"
+  token="${token#\"}"
+  token="${token%%\"*}"
+  token="${token#\'}"
+  token="${token%%\'*}"
+  # Brewfile-style: cask "foo", link: false — strip after comma
+  token="${token%%,*}"
+  token="${token#"${token%%[![:space:]]*}"}"
+  token="${token%"${token##*[![:space:]]}"}"
+}
+
 formulas=()
+casks=()
 taps=()
 line="" token=""
 
@@ -38,14 +52,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     fi
     continue
   fi
+  if [[ "$line" == cask* ]]; then
+    _brew_remove_parse_token cask "$line"
+    [[ -n "$token" ]] && casks+=("$token")
+    continue
+  fi
   if [[ "$line" != brew* ]]; then
     continue
   fi
-  token="${line#brew }"
-  token="${token#\"}"
-  token="${token%%\"*}"
-  token="${token#\'}"
-  token="${token%%\'*}"
+  _brew_remove_parse_token brew "$line"
   [[ -n "$token" ]] && formulas+=("$token")
 done <"$remove_file"
 
@@ -56,6 +71,12 @@ for formula in "${formulas[@]}"; do
   fi
   echo "brew-remove: uninstalling $formula"
   brew uninstall "$formula" || echo "brew-remove: skip $formula (brew uninstall failed)" >&2
+done
+
+for cask in "${casks[@]}"; do
+  brew list --cask "$cask" &>/dev/null || continue
+  echo "brew-remove: uninstalling cask $cask"
+  brew uninstall --cask "$cask" || echo "brew-remove: skip cask $cask (brew uninstall --cask failed)" >&2
 done
 
 for tap in "${taps[@]}"; do
