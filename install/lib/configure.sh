@@ -92,54 +92,6 @@ link_file "$DOTFILES_DIR/ignore" "$CONFIG_DIR/fd/ignore"
 # 3. For standalone ripgrep (Native home dir path)
 link_file "$DOTFILES_DIR/ignore" "$HOME/.ignore"
 
-
-# --- iTerm2 Configuration ---
-
-ITERM_PROFILE_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-ITERM_THEME_URL="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors"
-ITERM_THEME="$CONFIG_DIR/iterm2/Catppuccin Mocha.itermcolors"
-ITERM_PROFILE_BASE="$DOTFILES_DIR/config/iterm2/profile.base.json"
-ITERM_PROFILE_OUT="$ITERM_PROFILE_DIR/profile.json"
-
-mkdir -p "$CONFIG_DIR/iterm2"
-mkdir -p "$ITERM_PROFILE_DIR"
-
-link_file "$DOTFILES_DIR/config/iterm2/tmux-start.zsh" "$CONFIG_DIR/iterm2/tmux-start.zsh"
-chmod +x "$CONFIG_DIR/iterm2/tmux-start.zsh"
-chmod +x "$DOTFILES_DIR/config/iterm2/build-profile.py"
-
-if [[ -f "$ITERM_THEME" ]]; then
-    echo "iTerm2 theme already present: $ITERM_THEME"
-else
-    dotinstall_spin "Downloading iTerm2 Catppuccin theme…" \
-        curl -fsSL "$ITERM_THEME_URL" -o "$ITERM_THEME"
-fi
-
-if [[ -L "$ITERM_PROFILE_OUT" ]]; then
-    rm -f "$ITERM_PROFILE_OUT"
-fi
-
-if [[ -f "$ITERM_PROFILE_OUT" ]] \
-    && [[ "$ITERM_PROFILE_OUT" -nt "$ITERM_PROFILE_BASE" ]] \
-    && [[ "$ITERM_PROFILE_OUT" -nt "$ITERM_THEME" ]]; then
-    echo "iTerm2 profile already built: $ITERM_PROFILE_OUT"
-else
-    dotinstall_spin "Building iTerm2 profile…" \
-        python3 "$DOTFILES_DIR/config/iterm2/build-profile.py" \
-        "$ITERM_PROFILE_BASE" \
-        "$ITERM_THEME" \
-        "$ITERM_PROFILE_OUT"
-    echo "Built iTerm2 profile from Catppuccin Mocha theme"
-fi
-
-rm -f "$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch/set-default-profile.py" 2>/dev/null || true
-
-# Disable the "Quit iTerm2?" prompt
-defaults_write_if_needed com.googlecode.iterm2 PromptOnQuit 0
-
-# Force iTerm2's window chrome to Dark Theme (0 = Light, 1 = Dark, 2 = Minimal)
-defaults_write_if_needed com.googlecode.iterm2 TabStyleWithAutomaticOption 1
-
 # --- macOS Terminal.app (github-dark) ---
 
 chmod +x "$DOTFILES_DIR/config/terminal/install.sh"

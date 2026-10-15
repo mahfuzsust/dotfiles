@@ -17,7 +17,6 @@ cask "bitwarden" # Bitwarden is a password manager
 cask "visual-studio-code" # Visual Studio Code is a code editor
 cask "docker-desktop" # Docker Desktop is a containerization platform for desktop
 cask "maccy" # Maccy is a clipboard manager
-cask "iterm2" # iTerm2 is a terminal emulator   
 cask "gcloud-cli" # Google Cloud CLI is a command-line tool for Google Cloud Platform
 cask "intellij-idea" # IntelliJ IDEA is a Java IDE for developing desktop and web applications
 cask "cursor" # Cursor is a code editor that is a modern, open-source, and customizable code editor

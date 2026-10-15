@@ -90,7 +90,7 @@ Sign in or grant permissions as needed, for example:
 
 ### GUI apps (casks)
 
-Bitwarden, Cursor, iTerm2, IntelliJ IDEA, Notion, VS Code, Fira Code font, and others.
+Bitwarden, Cursor, IntelliJ IDEA, Notion, VS Code, Fira Code font, and others.
 
 To add a package, edit `Brewfile` and re-run `./install.sh`.
 
@@ -418,9 +418,7 @@ Symlinked to three locations so one file drives all ignore behaviour:
 
 ## tmux
 
-Config: `config/tmux/tmux.conf` (linked to `~/.tmux.conf`).
-
-iTerm2 starts or attaches session `main` via `~/.config/iterm2/tmux-start.zsh`.
+Config: `config/tmux/tmux.conf` (linked to `~/.tmux.conf`). Start or attach session `main` manually, e.g. `tmux new-session -A -s main`.
 
 **Prefix:** `Ctrl+b`
 
@@ -430,20 +428,7 @@ iTerm2 starts or attaches session `main` via `~/.config/iterm2/tmux-start.zsh`.
 | `\\` | horizontal split (top / bottom) |
 | `r` | reload tmux config |
 
-Click a pane or status-bar tab to switch. After changing config, run `dotinstall` or `Ctrl+b r`. If needed: `tmux kill-server` then open a new iTerm tab.
-
-Detaching tmux (`Ctrl+b d`) or closing the last tmux window returns you to a normal zsh prompt in iTerm (the profile no longer `exec`s into tmux only).
-
----
-
-## iTerm2
-
-- Profile built at install from `config/iterm2/profile.base.json` + [Catppuccin Mocha](https://github.com/mbadolato/iTerm2-Color-Schemes/blob/master/schemes/Catppuccin%20Mocha.itermcolors) (downloaded during `dotinstall`)
-- Tmux startup script linked to `~/.config/iterm2/tmux-start.zsh`
-- Quit confirmation disabled
-- Tab style set to dark
-
-Restart iTerm2 after install to pick up profile and theme changes.
+Click a pane or status-bar tab to switch. After changing config, run `dotinstall` or `Ctrl+b r`. If needed: `tmux kill-server` then open a new terminal window.
 
 ---
 
@@ -464,14 +449,6 @@ If you only need part of the setup without a full reinstall:
 DOTFILES=~/dotfiles
 ln -sfn "$DOTFILES/config/shell/aliases" ~/.config/shell/aliases
 ln -sfn "$DOTFILES/config/tmux/tmux.conf" ~/.tmux.conf
-ln -sfn "$DOTFILES/config/iterm2/tmux-start.zsh" ~/.config/iterm2/tmux-start.zsh
-chmod +x ~/.config/iterm2/tmux-start.zsh
-curl -fsSL "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/master/schemes/Catppuccin%20Mocha.itermcolors" \
-  -o ~/.config/iterm2/Catppuccin\ Mocha.itermcolors
-python3 "$DOTFILES/config/iterm2/build-profile.py" \
-  "$DOTFILES/config/iterm2/profile.base.json" \
-  ~/.config/iterm2/Catppuccin\ Mocha.itermcolors \
-  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/profile.json"
 ln -sfn "$DOTFILES/config/git/gac" ~/.config/git/gac
 ln -sfn "$DOTFILES/config/git/gpr" ~/.config/git/gpr
 ln -sfn "$DOTFILES/config/git/greview" ~/.config/git/greview
