@@ -4,7 +4,7 @@
 
 [tools]
 # Languages & JVM
-go = "latest"
+go = "1.26.0"
 python = "latest"
 java = "corretto-17.0.20"
 sbt = "1.12.9"
