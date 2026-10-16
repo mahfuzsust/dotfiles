@@ -36,7 +36,6 @@ mongosh = "latest"
 tmux = "latest"
 task = "latest" # go-task (https://github.com/go-task/task)
 neovim = "latest"
-bitwarden = "latest"
 
 [settings]
 # Honor .nvmrc / .node-version in project dirs (overrides global node when set)
