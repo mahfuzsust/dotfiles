@@ -57,7 +57,9 @@ else
     fi
 fi
 
-chmod +x "$DOTFILES_DIR/scripts/brew-remove"
+chmod +x "$DOTFILES_DIR/scripts/brew-remove" "$DOTFILES_DIR/scripts/remove-sdkman.sh"
+dotinstall_spin "Removing legacy SDKMAN…" "$DOTFILES_DIR/scripts/remove-sdkman.sh"
+
 if [[ -f "$DOTFILES_DIR/Brewfile-remove" ]]; then
     if ! dotinstall_spin "Applying Brewfile-remove…" "$DOTFILES_DIR/scripts/brew-remove" "$DOTFILES_DIR/Brewfile-remove"; then
         echo "Brewfile-remove had failures; continuing" >&2
