@@ -1,10 +1,25 @@
-# work standup: yesterday/today tasks (+ Friday when run on Monday).
+# work standup: yesterday/today tasks (+ Fri–Mon when run on Monday).
+
+_stup_prev_day() {
+  date -j -v-1d -f "%Y-%m-%d" "$1" "+%Y-%m-%d"
+}
+
+_stup_next_day() {
+  date -j -v+1d -f "%Y-%m-%d" "$1" "+%Y-%m-%d"
+}
 
 _stup_filter() {
-  local date_filter="(start:yesterday or end:yesterday or end:today) and +work"
+  local date_filter="" today="" last_friday="" end_after="" end_before=""
 
   if [[ "$(date +%u)" == "1" ]]; then
-    date_filter="(start:friday or end:friday or start:yesterday or end:yesterday or end:today)"
+    # Taskwarrior `friday` is the *upcoming* Friday, not last week's — use calendar bounds.
+    today="$(date +%Y-%m-%d)"
+    last_friday="$(date -v-3d +%Y-%m-%d)"
+    end_after="$(_stup_prev_day "$last_friday")"
+    end_before="$(_stup_next_day "$today")"
+    date_filter="(end.after:${end_after} and end.before:${end_before}) and +work"
+  else
+    date_filter="(start:yesterday or end:yesterday or end:today) and +work"
   fi
 
   print -r -- "$date_filter"
@@ -63,6 +78,10 @@ stup() {
   _stup_section "Pending" +work status:pending -ACTIVE all || true
 
   if (( ! _stup_sections_printed )); then
-    print -r -- "No tasks matched standup filters (+work, today/yesterday)."
+    if [[ "$(date +%u)" == "1" ]]; then
+      print -r -- "No tasks matched standup filters (+work, completed since last Friday)."
+    else
+      print -r -- "No tasks matched standup filters (+work, today/yesterday)."
+    fi
   fi
 }
