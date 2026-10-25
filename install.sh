@@ -57,9 +57,7 @@ else
     fi
 fi
 
-chmod +x "$DOTFILES_DIR/scripts/brew-remove" "$DOTFILES_DIR/scripts/remove-sdkman.sh"
-dotinstall_spin "Removing legacy SDKMAN…" "$DOTFILES_DIR/scripts/remove-sdkman.sh"
-
+chmod +x "$DOTFILES_DIR/scripts/brew-remove"
 if [[ -f "$DOTFILES_DIR/Brewfile-remove" ]]; then
     if ! dotinstall_spin "Applying Brewfile-remove…" "$DOTFILES_DIR/scripts/brew-remove" "$DOTFILES_DIR/Brewfile-remove"; then
         echo "Brewfile-remove had failures; continuing" >&2
@@ -117,11 +115,6 @@ dotinstall_spin "Applying dotfiles configuration…" dotinstall_apply_configurat
 chmod +x "$DOTFILES_DIR/config/mise/install.sh"
 if ! dotinstall_spin "Installing mise tools…" "$DOTFILES_DIR/config/mise/install.sh"; then
     echo "mise install had failures; continuing" >&2
-fi
-
-chmod +x "$DOTFILES_DIR/config/go/install.sh"
-if ! dotinstall_spin "Installing Go tools (dlv)…" "$DOTFILES_DIR/config/go/install.sh"; then
-    echo "Go tools install had failures; continuing" >&2
 fi
 
 # GPG commit signing (setup-gpg skips when signing key is already configured)

@@ -39,8 +39,6 @@ write_claude_settings \
     "$DOTFILES_DIR/config/claude/settings.json" \
     "$HOME/.claude/settings.json" \
     "${USER_CONFIG:-$DOTFILES_DIR/user-config.yml}"
-rm -f "$CONFIG_DIR/sdkman/packages" "$CONFIG_DIR/zsh/sdkman.env" 2>/dev/null || true
-rmdir "$CONFIG_DIR/sdkman" 2>/dev/null || true
 mkdir -p "$CONFIG_DIR/zsh"
 for zsh_file in "$DOTFILES_DIR/config/zsh"/*(N); do
     link_file "$zsh_file" "$CONFIG_DIR/zsh/${zsh_file:t}"
