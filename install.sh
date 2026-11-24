@@ -132,6 +132,7 @@ if [[ -f "$SHELL_RC" ]]; then
     ensure_dotfiles_zshenv
     ensure_dotfiles_zprofile
     normalize_zprofile
+    normalize_zshrc "$SHELL_RC"
 
     set +e
     source "$SHELL_RC" 2>/dev/null

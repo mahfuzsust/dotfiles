@@ -121,12 +121,14 @@ The installer also sets:
 ```bash
 git config --global core.excludesfile ~/.global_ignore
 git config --global init.defaultBranch main
+git config --global push.autoSetupRemote true
 git config --global sequence.editor nvim   # interactive rebase todo list
 git config --global core.editor nvim       # commit messages (incl. during rebase)
 ```
 
 - **`core.excludesfile`** — global gitignore via the shared `ignore` file
 - **`init.defaultBranch main`** — new repos default to `main`
+- **`push.autoSetupRemote true`** — first `git push` on a new branch sets upstream automatically
 - **`sequence.editor` / `core.editor`** — Neovim for `git rebase -i` and other Git editing (when `nvim` is installed)
 
 ### delta ([syntax-highlighting pager](https://github.com/dandavison/delta))
@@ -214,10 +216,23 @@ Flow for both:
 6. Push (including `--force-with-lease` if rebase rewrote history)
 7. Create PR assigned to **you** (`@me`)
 8. Print a **clickable URL** (OSC 8 hyperlink) and copy it to the clipboard
+9. Log a Taskwarrior task with the PR title and `project:<repo>` (see `--type`)
 
 ```bash
 gprm    # PR into main/master
 gpr     # PR into a branch you choose
+```
+
+Taskwarrior logging via `--type` (`-t`):
+
+| `--type` | Task command |
+|----------|--------------|
+| `work` (default) | `tk add +work +soundcloud project:<repo> <title>` (like `ta`) |
+| `personal` | `tk add +personal project:<repo> <title>` (like `tap`) |
+| `nil` | No task logged |
+
+```bash
+gprm --type personal
 ```
 
 Custom editor for the description:

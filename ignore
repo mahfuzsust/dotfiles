@@ -5,6 +5,9 @@
 .git/*
 .gitmodules
 .gitignore
+/.gitattributes
+/.githooks/
+/graphify-out/
 *.orig
 *.rej
 

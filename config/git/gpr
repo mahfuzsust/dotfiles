@@ -11,8 +11,53 @@ source "$_interactive"
 _GPR_BODY_FILE=""
 
 usage() {
-  echo "usage: gpr [--default-base]" >&2
+  echo "usage: gpr [--default-base] [--type work|personal|nil]" >&2
   echo "  --default-base  target main/master (or repo default); used by gprm" >&2
+  echo "  -t, --type      taskwarrior logging (default: work)" >&2
+  echo "                    work      tk add +work +soundcloud (same as ta)" >&2
+  echo "                    personal  tk add +personal (same as tap)" >&2
+  echo "                    nil       don't log in taskwarrior" >&2
+}
+
+validate_type() {
+  case "$1" in
+    work | personal | nil) ;;
+    *)
+      echo "gpr: invalid --type: $1 (expected work, personal or nil)" >&2
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+project_name() {
+  local name=""
+  name="$(gh repo view --json name -q .name 2>/dev/null || true)"
+  [[ -n "$name" ]] || name="$(basename "$(git rev-parse --show-toplevel)")"
+  printf '%s' "$name"
+}
+
+# Mirrors the ta/tap aliases in config/shell/task (aliases aren't available in scripts).
+log_task() {
+  local task_type="$1" title="$2" project="$3"
+  local tags=()
+
+  case "$task_type" in
+    nil) return 0 ;;
+    work) tags=(+work +soundcloud) ;;
+    personal) tags=(+personal) ;;
+  esac
+
+  if ! command -v tk >/dev/null 2>&1; then
+    echo "gpr: taskwarrior (tk) not found; skipping task log" >&2
+    return 0
+  fi
+
+  if tk add "${tags[@]}" "project:$project" -- "$title" >/dev/null; then
+    echo "Logged task ($task_type): [$project] $title"
+  else
+    echo "gpr: failed to log task in taskwarrior" >&2
+  fi
 }
 
 require_gh() {
@@ -290,6 +335,7 @@ cleanup_body_file() {
 
 main() {
   local use_default_base=0
+  local task_type="work"
   local base="" default_title="" pr_url=""
   local title="" body_file="" pr_state=""
 
@@ -297,6 +343,15 @@ main() {
     case "$1" in
       --default-base)
         use_default_base=1
+        shift
+        ;;
+      -t | --type)
+        [[ $# -ge 2 ]] || { echo "gpr: $1 requires a value" >&2; usage; exit 1; }
+        task_type="$2"
+        shift 2
+        ;;
+      --type=*)
+        task_type="${1#--type=}"
         shift
         ;;
       -h | --help)
@@ -311,6 +366,7 @@ main() {
     esac
   done
 
+  validate_type "$task_type"
   require_gh
   require_git_repo
 
@@ -359,6 +415,7 @@ main() {
   fi
 
   show_pr_url "$pr_url"
+  log_task "$task_type" "$title" "$(project_name)"
 }
 
 main "$@"
