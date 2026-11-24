@@ -236,8 +236,9 @@ grb() {
 }
 
 alias gac="$HOME/.config/git/gac"
-alias gpr="$HOME/.config/git/gpr --default-base"
-alias gprm="$HOME/.config/git/gpr"
+# Functions (not aliases): Oh My Zsh git plugin defines gpr=g pull --rebase after dotfiles load.
+gpr() { "$HOME/.config/git/gpr" --default-base "$@"; }
+gprm() { "$HOME/.config/git/gpr" "$@"; }
 alias gclean="$HOME/.config/git/gclean"
 alias greview="$HOME/.config/git/greview"
 

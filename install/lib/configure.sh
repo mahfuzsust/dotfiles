@@ -63,6 +63,7 @@ if [[ "$(git -C "$DOTFILES_DIR" config --get core.hooksPath 2>/dev/null)" != ".g
     git -C "$DOTFILES_DIR" config core.hooksPath .githooks
 fi
 git_config_set_if_needed init.defaultBranch main
+git_config_set_if_needed push.autoSetupRemote true
 git_config_set_if_needed rerere.enabled true
 
 if command -v nvim >/dev/null 2>&1; then

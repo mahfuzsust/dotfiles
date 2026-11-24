@@ -45,5 +45,6 @@
   "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
   "editorMode": "nvim",
-  "disableAdaptiveThinking": true
+  "disableAdaptiveThinking": true,
+  "attribution": false
 }

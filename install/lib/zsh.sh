@@ -184,6 +184,29 @@ normalize_zprofile() {
     cleanup_duplicate_brew_shellenv_in_zprofile "$zprofile"
 }
 
+# Second source of oh-my-zsh.sh after the dotfiles block redefines gpr (git pull --rebase).
+normalize_zshrc() {
+    local shell_rc="${1:-$HOME/.zshrc}" temp="" removed=0
+
+    [[ -f "$shell_rc" ]] || return 0
+    grep -qF "# --- END DOTFILES ZSHRC ---" "$shell_rc" || return 0
+
+    temp="$(mktemp)"
+    awk '
+        /^# --- END DOTFILES ZSHRC ---$/ { past = 1; print; next }
+        past && /^#[[:space:]]*Oh My Zsh[[:space:]]*$/ { next }
+        past && /^[[:space:]]*source[[:space:]]+(\$ZSH\/oh-my-zsh\.sh|"(\$ZSH\/|\$HOME\/\.oh-my-zsh\/)[^"]*oh-my-zsh\.sh")/ { next }
+        past && /^[[:space:]]*source[[:space:]]+.*oh-my-zsh\.sh/ { next }
+        { print }
+    ' "$shell_rc" >"$temp"
+    if ! cmp -s "$shell_rc" "$temp"; then
+        mv "$temp" "$shell_rc"
+        echo "Removed duplicate oh-my-zsh.sh source from $shell_rc (already loaded via ~/.config/zsh/zshrc)"
+    else
+        rm -f "$temp"
+    fi
+}
+
 # ~/.zshrc keeps user-owned lines; everything dotfiles owns lives in config/zsh/zshrc.
 # Migrates legacy patched blocks (old installs) and inserts the single source line at the top.
 ensure_managed_zshrc() {
