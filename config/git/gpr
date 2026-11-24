@@ -39,8 +39,13 @@ project_name() {
 
 # Mirrors the ta/tap aliases in config/shell/task (aliases aren't available in scripts).
 log_task() {
-  local task_type="$1" title="$2" project="$3"
-  local tags=()
+  local task_type="$1" title="$2" project="$3" url="$4"
+  local tags=() message=""
+
+  # Strip conventional-commit prefix, e.g. "feat(scope)!: " / "fix: ".
+  message="$(printf '%s' "$title" | sed -E 's/^[[:alnum:]_-]+(\([^)]*\))?!?:[[:space:]]*//')"
+  [[ -n "$message" ]] || message="$title"
+  message="$message [pr]($url)"
 
   case "$task_type" in
     nil) return 0 ;;
@@ -53,8 +58,8 @@ log_task() {
     return 0
   fi
 
-  if tk add "${tags[@]}" "project:$project" -- "$title" >/dev/null; then
-    echo "Logged task ($task_type): [$project] $title"
+  if tk add "${tags[@]}" "project:$project" -- "$message" >/dev/null; then
+    echo "Logged task ($task_type): [$project] $message"
   else
     echo "gpr: failed to log task in taskwarrior" >&2
   fi
@@ -415,7 +420,7 @@ main() {
   fi
 
   show_pr_url "$pr_url"
-  log_task "$task_type" "$title" "$(project_name)"
+  log_task "$task_type" "$title" "$(project_name)" "$pr_url"
 }
 
 main "$@"
